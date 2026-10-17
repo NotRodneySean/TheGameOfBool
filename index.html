@@ -173,11 +173,12 @@
         height: auto;
         margin: 0.5rem 0 1rem;
       }
-      .result-dialog { border: 0; border-radius: 18px; padding: 0; width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; color: #182234; background: #fff; box-shadow: 0 24px 80px #0006; }
+      .result-dialog { border: 0; border-radius: 18px; padding: 0; width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; color: #182234; background: #fff; box-shadow: 0 24px 80px #0006; overflow-wrap: anywhere; }
       .result-dialog::backdrop { background: rgb(5 10 20 / 75%); }
       .result-content { position: relative; padding: 40px 28px 28px; }
       .result-close { position: absolute; top: 8px; right: 8px; font-size: 24px; line-height: 1; width: 44px; height: 44px; }
       .result-reopen { position: fixed; top: 12px; right: 12px; z-index: 40; }
+      .controls-bg { overflow-wrap: anywhere; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
@@ -439,34 +440,30 @@
         <path d="m6 6 12 12" />
       </svg>`;
 
-      function GameOverModal({ result, onlineGame, isHost, busy, error, onRestart, onCreate }) {
-        const dialogRef = useRef(null);
+      function ResultModal({ result, title, room, isHost, busy, error, onRestart, onCreate }) {
+        const ref = useRef(null);
         const [dismissed, setDismissed] = useState(false);
-        useEffect(() => {
-          const dialog = dialogRef.current;
-          if (result && !dismissed) {
-            if (!dialog.open) dialog.showModal();
-          } else if (dialog.open) dialog.close();
-          return () => { if (dialog.open) dialog.close(); };
-        }, [result, dismissed]);
         useEffect(() => { setDismissed(false); }, [result]);
+        useEffect(() => {
+          const d = ref.current;
+          if (result && !dismissed) { if (!d.open) d.showModal(); }
+          else if (d.open) d.close();
+          return () => { if (d.open) d.close(); };
+        }, [result, dismissed]);
         return html`<div>
           ${result && dismissed ? html`<button class="result-reopen btn btn-light" onClick=${() => setDismissed(false)}>View result</button>` : null}
-          <dialog ref=${dialogRef} class="result-dialog" aria-labelledby="game-result-title"
-            aria-describedby="game-result-description" onCancel=${() => setDismissed(true)}>
+          <dialog ref=${ref} class="result-dialog" aria-labelledby="game-result-title" aria-describedby="game-result-description" onCancel=${() => setDismissed(true)}>
             <div class="result-content">
-              <button type="button" class="result-close btn btn-light" aria-label="Close game result" onClick=${() => setDismissed(true)}>×</button>
-              <p class="text-uppercase small text-secondary mb-2">Game over</p>
-              <h2 id="game-result-title" class="h2 mb-3">${result === 'tie' ? "It's a tie!" : result != null ? `${result} wins!` : "Game over"}</h2>
-              <p id="game-result-description">${result === 'tie' ? "All nodes are claimed, but neither player connected the top to the bottom." : "A winning path connects the top to the bottom."}</p>
+              <button class="result-close btn btn-light" aria-label="Close game result" onClick=${() => setDismissed(true)}>×</button>
+              <p class="small text-secondary">Game over</p>
+              <h2 id="game-result-title" class="h2">${title}</h2>
+              <p id="game-result-description">${result === "tie" ? "All nodes are claimed, but neither player connected the top to the bottom." : "A winning path connects the top to the bottom."}</p>
               <div class="d-grid gap-2 mt-4">
-                <button type="button" class="btn btn-primary" disabled=${busy || (onlineGame && !isHost)} onClick=${onRestart}>
-                  ${busy ? "Please wait…" : "Start New Game"}
-                </button>
-                ${!onlineGame ? html`<button type="button" class="btn btn-outline-primary" disabled=${busy} onClick=${onCreate}>Create Online Game</button>` : null}
+                <button class="btn btn-primary" disabled=${busy || (!!room && !isHost)} onClick=${onRestart}>${busy ? "Please wait…" : "Start New Game"}</button>
+                ${!room ? html`<button class="btn btn-outline-primary" disabled=${busy} onClick=${onCreate}>Create Online Game</button>` : null}
               </div>
-              ${onlineGame && !isHost ? html`<p class="small text-secondary mt-3 mb-0">Waiting for the host to start a new game.</p>` : null}
-              ${error ? html`<p class="small text-danger mt-3 mb-0" role="status">${error}</p>` : null}
+              ${room && !isHost ? html`<p class="small mt-3">Waiting for the host to start a new game.</p>` : null}
+              ${error ? html`<p class="text-danger small mt-3" role="status">${error}</p>` : null}
             </div>
           </dialog>
         </div>`;
@@ -490,6 +487,13 @@
         const [netError, setNetError] = useState("");
         const [busy, setBusy] = useState(false);
         const channelRef = useRef(null);
+        const [nameDraft, setNameDraft] = useState("");
+        const nameInitialized = useRef(false);
+        const [savingName, setSavingName] = useState(false);
+        const [nameFeedback, setNameFeedback] = useState("");
+        const onlineNames = online?.names || ["Player 1", "Player 2"];
+        const displayName = (seat) => room ? onlineNames[seat] : players[seat].name;
+
 
         const room = useMemo(
           () => new URLSearchParams(location.search).get("room"),
@@ -523,17 +527,24 @@
               seat: data.seat,
               guestJoined: data.guest_joined,
               winner: data.winner,
+              names: [data.host_name || "Player 1", data.guest_name || "Player 2"],
+
             });
+            if (!nameInitialized.current) {
+              setNameDraft((data.seat === 0 ? data.host_name : data.guest_name) || "");
+              nameInitialized.current = true;
+            }
+            const names = [data.host_name || "Player 1", data.guest_name || "Player 2"];
             if (data.winner != null) {
               setMessage(
-                `${players[data.winner].name} connected Top ↔ Bottom!`,
+                `${names[data.winner]} connected Top ↔ Bottom!`,
               );
             } else if (Object.keys(data.owners || {}).length === (1 << data.board_size)) {
-              setMessage("It’s a tie! All nodes are claimed.");
+              setMessage("It's a tie! All nodes are claimed.");
             } else if (!data.guest_joined) {
               setMessage("Waiting for the other player to join…");
             } else {
-              setMessage(`${players[data.current_player].name}'s turn.`);
+              setMessage(`${names[data.current_player]}'s turn.`);
             }
             setNetError("");
           },
@@ -647,7 +658,23 @@
 
         const winnerIndex = room ? online?.winner : victory?.playerIndex;
         const isTie = winnerIndex == null && !victory && owners.size === (1 << k);
-        const result = winnerIndex != null ? players[winnerIndex].name : isTie ? 'tie' : null;
+        const result = winnerIndex != null ? `winner:${winnerIndex}` : isTie ? "tie" : null;
+        const resultTitle = isTie ? "It's a tie!" : winnerIndex != null ? `${displayName(winnerIndex)} wins!` : "Game over";
+
+        async function saveName(event) {
+          event.preventDefault();
+          if (!online || savingName) return;
+          setSavingName(true); setNameFeedback("");
+          try {
+            const { error } = await sb.rpc("set_bool_player_name", {
+              p_game_id: room, p_token: getToken(), p_name: nameDraft.trim()
+            });
+            if (error) throw error;
+            if (await loadGame(room)) { ping(); setNameFeedback("Name saved."); }
+            else setNameFeedback("Saved, but couldn't refresh. Try again shortly.");
+          } catch (e) { setNameFeedback(e.message || "Could not save your name."); }
+          finally { setSavingName(false); }
+        }
 
         function reset() {
           if (room) {
@@ -662,8 +689,6 @@
             );
             return;
           }
-          setNetError("");
-          setOpenPanel(null);
           setOwners(new Map());
           setHistory([]);
           setLastMove(null);
@@ -742,7 +767,7 @@
           if (computePath(k, ownedNow)) {
             setMessage(`${players[current].name} connected Top ↔ Bottom!`);
           } else if (newOwners.size === (1 << k)) {
-            setMessage("It’s a tie! All nodes are claimed.");
+            setMessage("It's a tie! All nodes are claimed.");
           } else {
             setCurrent((current + 1) % players.length);
             setMessage(
@@ -826,7 +851,7 @@
         const isHost = online?.seat === 0;
 
         return html`<div class="app d-flex flex-column">
-          <${GameOverModal} result=${result} onlineGame=${!!room} isHost=${isHost}
+          <${ResultModal} result=${result} title=${resultTitle} room=${room} isHost=${isHost}
             busy=${busy} error=${netError} onRestart=${reset} onCreate=${createRoom} />
           <div class="layout">
             <main class="main-area">
@@ -901,22 +926,22 @@
                 <hr />
                 ${room
                   ? html`<div>
-                        You are ${online?.seat === 0 ? "X (host)" : "O"}.
+                        You are ${online ? displayName(online.seat) : "joining…"}${online?.seat === 0 ? " (X, host)" : online ? " (O)" : ""}.
                       </div>
-                      <div>
-                        X:
-                        ${online?.seat === 0
-                          ? "You"
-                          : online?.guestJoined
-                            ? "Connected"
-                            : "Waiting"}
-                        · O:
-                        ${online?.seat === 1
-                          ? "You"
-                          : online?.guestJoined
-                            ? "Connected"
-                            : "Waiting"}
+                      <div class="small">
+                        ${onlineNames[0]} (X) · ${onlineNames[1]} (O)${online && !online.guestJoined ? " — waiting to join" : ""}
                       </div>
+                      <form onSubmit=${saveName} class="d-flex flex-column gap-2">
+                        <label for="player-name">Your name <span class="small">(optional)</span></label>
+                        <input id="player-name" class="form-control form-control-sm" type="text"
+                          maxlength="40" autocomplete="nickname" value=${nameDraft}
+                          placeholder=${online?.seat === 1 ? "Player 2" : "Player 1"}
+                          disabled=${!online || savingName}
+                          aria-describedby="player-name-help" onInput=${(e) => { setNameDraft(e.target.value); setNameFeedback(""); }} />
+                        <small id="player-name-help">Leave blank to use ${online?.seat === 1 ? "Player 2" : "Player 1"}. Up to 40 characters.</small>
+                        <button type="submit" class="btn btn-light btn-sm" disabled=${!online || savingName}>${savingName ? "Saving…" : "Save Name"}</button>
+                        <small role="status" aria-live="polite">${nameFeedback}</small>
+                      </form>
                       <label for="invite-link">Invite link</label>
                       <input
                         id="invite-link"
