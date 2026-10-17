@@ -1,0 +1,1164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Bool</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      le > :root {
+        --charcoal: oklch(12.9% 0.042 264.695);
+        --bs-body-font-family: "Inter", system-ui, -apple-system, sans-serif;
+      }
+      html,
+      body {
+        height: 100%;
+        overflow: hidden;
+      }
+      .app {
+        height: 100vh;
+        height: 100dvh;
+      }
+      .layout {
+        position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
+      }
+
+      .main-area {
+        position: absolute;
+        inset: 0;
+        overflow: hidden;
+        background: var(--charcoal);
+        color: #e6edf3;
+      }
+      .panel {
+        flex-direction: column;
+      }
+      .controls-panel {
+        background: var(--periwinkle);
+      }
+      .controls-bg,
+      .controls-bg svg {
+        color: #fff;
+        background: oklch(20.8% 0.042 265.755);
+      }
+      .instructions-panel {
+        background: #fff;
+      }
+      .panel-scroll {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 1rem;
+      }
+
+      @media (max-width: 991.98px) {
+        .panel {
+          position: absolute;
+          inset: 0;
+          z-index: 20;
+        }
+      }
+      @media (min-width: 992px) {
+        .layout {
+          display: grid;
+          grid-template-columns: 280px minmax(0, 1fr);
+          grid-template-rows: minmax(0, 7fr) minmax(0, 3fr);
+        }
+        .main-area {
+          position: relative;
+          inset: auto;
+          grid-column: 2;
+          grid-row: 1;
+        }
+        .controls-panel {
+          grid-column: 1;
+          grid-row: 1;
+        }
+        .instructions-panel {
+          grid-column: 1 / span 2;
+          grid-row: 2;
+        }
+        .instructions-panel .panel-scroll {
+          padding: 1rem 2rem;
+        }
+      }
+
+      .close-btn {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        width: 44px;
+        height: 44px;
+        z-index: 2;
+      }
+      .bottom-nav {
+        height: 64px;
+        box-sizing: content-box;
+        background: oklch(27.9% 0.041 260.031);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .nav-tab {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        color: oklch(98.4% 0.003 247.858);
+        font-size: 0.875rem;
+        font-weight: 500;
+      }
+      .nav-tab:hover,
+      .nav-tab:active .nav-tab[aria-pressed="true"] {
+        color: oklch(92.9% 0.013 255.508);
+        background: oklch(20.8% 0.042 265.755);
+      }
+      .nav-tab[aria-pressed="true"] {
+        color: oklch(92.9% 0.013 255.508);
+        background: oklch(27.9% 0.041 260.031);
+      }
+      button.nav-tab:active svg,
+      .btn:first-child:active {
+        color: oklch(92.9% 0.013 255.508);
+      }
+
+      /* Board */
+      .board-wrap {
+        width: 100%;
+        height: 100%;
+      }
+      .board-wrap svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+      .node {
+        cursor: pointer;
+      }
+      .node:hover {
+        filter: brightness(1.15);
+      }
+      .node circle {
+        stroke: #0c1220;
+        stroke-width: 2;
+      }
+      .node text {
+        font: 12px monospace;
+        fill: #0c1220;
+        user-select: none;
+      }
+      .owned circle {
+        stroke-width: 2.6;
+      }
+      .lastmove circle {
+        stroke: #6aa9ff;
+        stroke-width: 3;
+      }
+
+      .rules canvas {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        margin: 0.5rem 0 1rem;
+      }
+      .result-dialog { border: 0; border-radius: 18px; padding: 0; width: min(420px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; color: #182234; background: #fff; box-shadow: 0 24px 80px #0006; }
+      .result-dialog::backdrop { background: rgb(5 10 20 / 75%); }
+      .result-content { position: relative; padding: 40px 28px 28px; }
+      .result-close { position: absolute; top: 8px; right: 8px; font-size: 24px; line-height: 1; width: 44px; height: 44px; }
+      .result-reopen { position: fixed; top: 12px; right: 12px; z-index: 40; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <template id="instructions-tpl">
+      <div class="rules">
+        <h2 class="h5">
+          Boolean Algebra Disguised as Tic-Tac-Toe Allows You To Capture Your
+          Opponents Positions!
+        </h2>
+        <p>
+          <a
+            href="https://kevinpowell.rf.gd/Boolean.pdf"
+            target="_blank"
+            rel="noopener"
+            >Download Printable Game Board</a
+          >
+        </p>
+
+        <h3 class="h5">Rules of Bool</h3>
+        <ul>
+          <li>
+            Pretend that you are player X. On your turn, choose one node to mark
+            with an X. You are allowed to capture the meet
+            <em>(see description below)</em> between your chosen node and any
+            other node currently marked as X. You are also allowed to capture
+            the join <em>(see description below)</em> between your chosen node
+            and any other node currently marked as X.
+          </li>
+          <li>
+            Again, pretend that you are player X. If you have obtained two
+            adjacent nodes connected by one single edge, then you have also
+            captured that edge.
+          </li>
+          <li>
+            The first player to capture enough edges to make a path from the top
+            to the bottom wins.
+          </li>
+        </ul>
+
+        <h3 class="h5">Join and Meet</h3>
+        <p>
+          <strong>Join:</strong> The join of two vertices A and B is the lowest
+          vertex that has either a downward or "stay-put" path to both A and B.
+        </p>
+        <canvas id="g1" width="600" height="350"></canvas>
+        <canvas id="g2" width="600" height="250"></canvas>
+        <canvas id="g3" width="600" height="250"></canvas>
+
+        <p>
+          <strong>Meet:</strong> The meet of two vertices A and B is the highest
+          vertex that has either an upward or "stay-put" path to both A and B.
+        </p>
+        <canvas id="g4" width="600" height="350"></canvas>
+        <canvas id="g5" width="600" height="350"></canvas>
+        <canvas id="g6" width="600" height="250"></canvas>
+
+        <p class="text-center">
+          Original Idea by Kevin Powell. The initial version of the game above
+          was vibe-coded by Adam Teichert.
+        </p>
+      </div>
+    </template>
+    <script src="https://unpkg.com/preact@10.22.0/dist/preact.umd.js"></script>
+    <script src="https://unpkg.com/preact@10.22.0/hooks/dist/hooks.umd.js"></script>
+    <script src="https://unpkg.com/htm@3.1.1/dist/htm.umd.js"></script>
+    <script>
+      const { h, render } = preact;
+      const { useState, useMemo, useRef, useEffect, useCallback } = preactHooks;
+      const html = htm.bind(h);
+
+      // Replace these two values with your Supabase project values.
+      const SUPABASE_URL = "https://qbfcdibyjppvqxsehsbx.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "sb_publishable_wQDPkHadnBFdA_P_8JJA-A_s8UfnnCQ";
+      const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      const popcount = (n) => {
+        n = n - ((n >>> 1) & 0x55555555);
+        n = (n & 0x33333333) + ((n >>> 2) & 0x33333333);
+        return (((n + (n >>> 4)) & 0x0f0f0f0f) * 0x01010101) >>> 24;
+      };
+      const range = (n) => Array.from({ length: n }, (_, i) => i);
+      const bitsOf = (n, k) => range(k).filter((b) => (n >> b) & 1);
+
+      function layoutNodes(k, W = 700, H = 700, pad = 50) {
+        const levels = range(k + 1).map(() => []);
+        for (let v = 0; v < 1 << k; v++) levels[popcount(v)].push(v);
+        const pos = new Map();
+        levels.forEach((arr, levelIdx) => {
+          const y = H - (pad + (levelIdx * (H - 2 * pad)) / k);
+          const n = arr.length;
+          arr.sort((a, b) => a - b);
+          arr.forEach((v, i) => {
+            const x = n === 1 ? W / 2 : pad + (i * (W - 2 * pad)) / (n - 1);
+            pos.set(v, { x, y });
+          });
+        });
+        const edges = [];
+        for (let v = 0; v < 1 << k; v++)
+          for (let b = 0; b < k; b++)
+            if (((v >> b) & 1) === 0) edges.push([v, v | (1 << b)]);
+        return { positions: pos, edges, levels };
+      }
+
+      function computePath(k, ownedSet) {
+        const top = (1 << k) - 1,
+          bottom = 0;
+        if (!ownedSet.has(top) || !ownedSet.has(bottom)) return null;
+        const stack = [[top, [top]]];
+        const seen = new Set([top]);
+        while (stack.length) {
+          const [v, path] = stack.pop();
+          if (v === bottom) return path;
+          for (const b of bitsOf(v, k)) {
+            const u = v & ~(1 << b);
+            if (ownedSet.has(u) && !seen.has(u)) {
+              seen.add(u);
+              stack.push([u, [...path, u]]);
+            }
+          }
+        }
+        return null;
+      }
+
+      function Board({
+        k,
+        players,
+        owners,
+        lastMove,
+        onClaim,
+        zoom,
+        setZoom,
+        pan,
+        setPan,
+        disabled,
+      }) {
+        const W = 700,
+          H = 700;
+        const board = useMemo(() => layoutNodes(k, W, H, 50), [k]);
+        const svgRef = useRef(null);
+        const dragging = useRef(false);
+        const lastPt = useRef({ x: 0, y: 0 });
+
+        useEffect(() => {
+          const svg = svgRef.current;
+          if (!svg) return;
+          const pt = (e) => ({ x: e.clientX, y: e.clientY });
+          const onWheel = (e) => {
+            e.preventDefault();
+            setZoom((z) =>
+              Math.min(2, Math.max(0.5, z - Math.sign(e.deltaY) * 0.08)),
+            );
+          };
+          const onDown = (e) => {
+            dragging.current = true;
+            lastPt.current = pt(e);
+            svg.style.cursor = "grabbing";
+          };
+          const onMove = (e) => {
+            if (!dragging.current) return;
+            const p = pt(e);
+            setPan((pan) => ({
+              x: pan.x + (p.x - lastPt.current.x) / zoom,
+              y: pan.y + (p.y - lastPt.current.y) / zoom,
+            }));
+            lastPt.current = p;
+          };
+          const onUp = () => {
+            dragging.current = false;
+            svg.style.cursor = "default";
+          };
+          svg.addEventListener("wheel", onWheel, { passive: false });
+          svg.addEventListener("pointerdown", onDown);
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+          return () => {
+            svg.removeEventListener("wheel", onWheel);
+            svg.removeEventListener("pointerdown", onDown);
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+          };
+        }, [zoom, setZoom, setPan]);
+
+        const baseR = 18;
+        return html`<div class="board-wrap">
+          <svg ref=${svgRef} viewBox="0 0 ${W} ${H}">
+            <g transform=${`translate(${pan.x},${pan.y}) scale(${zoom})`}>
+              ${board.edges.map(([v, w], i) => {
+                const p = board.positions.get(v),
+                  q = board.positions.get(w);
+                const ownerV = owners.get(v),
+                  ownerW = owners.get(w);
+                let stroke = "#d7d9d7",
+                  width = 3;
+                if (ownerV != null && ownerV === ownerW) {
+                  stroke = players[ownerV].color;
+                  width = 2.4;
+                }
+                return html`<line
+                  key=${i}
+                  x1=${p.x}
+                  y1=${p.y}
+                  x2=${q.x}
+                  y2=${q.y}
+                  stroke=${stroke}
+                  stroke-width=${width}
+                ></line>`;
+              })}
+              ${range(1 << k).map((v) => {
+                const { x, y } = board.positions.get(v);
+                const owner = owners.get(v);
+                const cls =
+                  (owner != null ? "owned " : "") +
+                  (lastMove === v ? "lastmove" : "");
+                return html`<g
+                  key=${v}
+                  class="node"
+                  transform=${`translate(${x},${y})`}
+                >
+                  <circle
+                    r=${baseR}
+                    fill=${owner != null ? players[owner].color : "#d7d9d7"}
+                    class=${cls}
+                    onClick=${() => onClaim(v)}
+                    style=${disabled ? "cursor:not-allowed" : ""}
+                  ></circle>
+                  <text
+                    y=${10}
+                    text-anchor="middle"
+                    onClick=${() => onClaim(v)}
+                    style="font-size: 2em; font-family: Arial, sans-serif;"
+                  >
+                    ${owner != null ? players[owner].name : ""}
+                  </text>
+                </g>`;
+              })}
+            </g>
+          </svg>
+        </div>`;
+      }
+
+      const instructionsHtml = {
+        __html: document.getElementById("instructions-tpl").innerHTML,
+      };
+      const closeIcon = html`<svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </svg>`;
+
+      function GameOverModal({ result, onlineGame, isHost, busy, error, onRestart, onCreate }) {
+        const dialogRef = useRef(null);
+        const [dismissed, setDismissed] = useState(false);
+        useEffect(() => {
+          const dialog = dialogRef.current;
+          if (result && !dismissed) {
+            if (!dialog.open) dialog.showModal();
+          } else if (dialog.open) dialog.close();
+          return () => { if (dialog.open) dialog.close(); };
+        }, [result, dismissed]);
+        useEffect(() => { setDismissed(false); }, [result]);
+        return html`<div>
+          ${result && dismissed ? html`<button class="result-reopen btn btn-light" onClick=${() => setDismissed(false)}>View result</button>` : null}
+          <dialog ref=${dialogRef} class="result-dialog" aria-labelledby="game-result-title"
+            aria-describedby="game-result-description" onCancel=${() => setDismissed(true)}>
+            <div class="result-content">
+              <button type="button" class="result-close btn btn-light" aria-label="Close game result" onClick=${() => setDismissed(true)}>×</button>
+              <p class="text-uppercase small text-secondary mb-2">Game over</p>
+              <h2 id="game-result-title" class="h2 mb-3">${result === 'tie' ? "It's a tie!" : result != null ? `${result} wins!` : "Game over"}</h2>
+              <p id="game-result-description">${result === 'tie' ? "All nodes are claimed, but neither player connected the top to the bottom." : "A winning path connects the top to the bottom."}</p>
+              <div class="d-grid gap-2 mt-4">
+                <button type="button" class="btn btn-primary" disabled=${busy || (onlineGame && !isHost)} onClick=${onRestart}>
+                  ${busy ? "Please wait…" : "Start New Game"}
+                </button>
+                ${!onlineGame ? html`<button type="button" class="btn btn-outline-primary" disabled=${busy} onClick=${onCreate}>Create Online Game</button>` : null}
+              </div>
+              ${onlineGame && !isHost ? html`<p class="small text-secondary mt-3 mb-0">Waiting for the host to start a new game.</p>` : null}
+              ${error ? html`<p class="small text-danger mt-3 mb-0" role="status">${error}</p>` : null}
+            </div>
+          </dialog>
+        </div>`;
+      }
+
+      function App() {
+        const [k, setK] = useState(4);
+        const [players] = useState([
+          { id: 0, name: "X", color: "#22c55e" },
+          { id: 1, name: "O", color: "#60a5fa" },
+        ]);
+        const [current, setCurrent] = useState(0);
+        const [owners, setOwners] = useState(() => new Map());
+        const [lastMove, setLastMove] = useState(null);
+        const [history, setHistory] = useState([]);
+        const [zoom, setZoom] = useState(1);
+        const [pan, setPan] = useState({ x: 0, y: 0 });
+        const [message, setMessage] = useState("Select a node to play.");
+        const [openPanel, setOpenPanel] = useState(null);
+        const [online, setOnline] = useState(null);
+        const [netError, setNetError] = useState("");
+        const [busy, setBusy] = useState(false);
+        const channelRef = useRef(null);
+
+        const room = useMemo(
+          () => new URLSearchParams(location.search).get("room"),
+          [],
+        );
+
+        const getToken = () => {
+          let token = localStorage.getItem("bool-player-token");
+          if (!token || token.length < 20) {
+            token = crypto.randomUUID();
+            localStorage.setItem("bool-player-token", token);
+          }
+          return token;
+        };
+
+        const applyGame = useCallback(
+          (data) => {
+            setK(data.board_size);
+            setOwners(
+              new Map(
+                Object.entries(data.owners || {}).map(([n, p]) => [
+                  Number(n),
+                  p,
+                ]),
+              ),
+            );
+            setCurrent(data.current_player);
+            setLastMove(data.last_move);
+            setOnline({
+              id: data.game_id,
+              seat: data.seat,
+              guestJoined: data.guest_joined,
+              winner: data.winner,
+            });
+            if (data.winner != null) {
+              setMessage(
+                `${players[data.winner].name} connected Top ↔ Bottom!`,
+              );
+            } else if (Object.keys(data.owners || {}).length === (1 << data.board_size)) {
+              setMessage("It’s a tie! All nodes are claimed.");
+            } else if (!data.guest_joined) {
+              setMessage("Waiting for the other player to join…");
+            } else {
+              setMessage(`${players[data.current_player].name}'s turn.`);
+            }
+            setNetError("");
+          },
+          [players],
+        );
+
+        const loadGame = useCallback(
+          async (id) => {
+            const { data, error } = await sb.rpc("get_bool_game", {
+              p_game_id: id,
+              p_token: getToken(),
+            });
+            if (error) {
+              setNetError(error.message);
+              return false;
+            }
+            applyGame(data);
+            return true;
+          },
+          [applyGame],
+        );
+
+        const ping = () => {
+          channelRef.current?.send({
+            type: "broadcast",
+            event: "game-updated",
+            payload: {},
+          });
+        };
+
+        const rpcAction = useCallback(
+          async (fn, args, fallbackMessage) => {
+            if (busy) return;
+            setBusy(true);
+            try {
+              const { data, error } = await sb.rpc(fn, args);
+              if (error) throw error;
+              const ok = await loadGame(room);
+              if (ok) ping();
+              if (fallbackMessage) setMessage(fallbackMessage);
+              return data;
+            } catch (e) {
+              setNetError(e.message || "Something went wrong.");
+            } finally {
+              setBusy(false);
+            }
+          },
+          [busy, loadGame, room],
+        );
+
+        useEffect(() => {
+          if (!room) return;
+          let cancelled = false;
+          (async () => {
+            const token = getToken();
+            const { data, error } = await sb.rpc("join_bool_game", {
+              p_game_id: room,
+              p_token: token,
+            });
+            if (cancelled) return;
+            if (error) {
+              setNetError(error.message);
+              return;
+            }
+            await loadGame(room);
+            const channel = sb
+              .channel(`bool-game:${room}`)
+              .on("broadcast", { event: "game-updated" }, () => loadGame(room))
+              .subscribe((status) => {
+                if (status === "SUBSCRIBED") {
+                  loadGame(room);
+                  channel.send({ type: "broadcast", event: "game-updated", payload: {} });
+                }
+              });
+            channelRef.current = channel;
+          })();
+          return () => {
+            cancelled = true;
+            channelRef.current?.unsubscribe();
+            channelRef.current = null;
+          };
+        }, [room, loadGame]);
+
+        useEffect(() => {
+          if (!room) return;
+          const timer = setInterval(() => loadGame(room), 10000);
+          return () => clearInterval(timer);
+        }, [room, loadGame]);
+
+        useEffect(() => {
+          const onKey = (e) => {
+            if (e.key === "Escape") setOpenPanel(null);
+          };
+          window.addEventListener("keydown", onKey);
+          return () => window.removeEventListener("keydown", onKey);
+        }, []);
+
+        const ownedByPlayer = useMemo(() => {
+          const map = new Map(players.map((p) => [p.id, new Set()]));
+          owners.forEach((pi, node) => map.get(pi)?.add(node));
+          return map;
+        }, [owners, players]);
+
+        const victory = useMemo(() => {
+          for (let i = 0; i < players.length; i++) {
+            const path = computePath(k, ownedByPlayer.get(i));
+            if (path) return { playerIndex: i, path };
+          }
+          return null;
+        }, [ownedByPlayer, k]);
+
+        const winnerIndex = room ? online?.winner : victory?.playerIndex;
+        const isTie = winnerIndex == null && !victory && owners.size === (1 << k);
+        const result = winnerIndex != null ? players[winnerIndex].name : isTie ? 'tie' : null;
+
+        function reset() {
+          if (room) {
+            if (online?.seat !== 0) {
+              setNetError("Only the host can reset the game.");
+              return;
+            }
+            rpcAction(
+              "reset_bool_game",
+              { p_game_id: room, p_token: getToken() },
+              "Game reset.",
+            );
+            return;
+          }
+          setNetError("");
+          setOpenPanel(null);
+          setOwners(new Map());
+          setHistory([]);
+          setLastMove(null);
+          setCurrent(0);
+          setMessage("Select a node to play.");
+        }
+
+        function undo() {
+          if (room) {
+            if (online?.seat !== 0) {
+              setNetError("Only the host can undo.");
+              return;
+            }
+            rpcAction(
+              "undo_bool_game",
+              { p_game_id: room, p_token: getToken() },
+              "Undid last move.",
+            );
+            return;
+          }
+          if (!history.length) return;
+          const prev = history[history.length - 1];
+          setOwners(new Map(prev.owners));
+          setCurrent(prev.current);
+          setLastMove(prev.lastMove);
+          setHistory((h) => h.slice(0, -1));
+          setMessage("Undid last move.");
+        }
+
+        function handleClaim(node) {
+          if (room) {
+            if (!online?.guestJoined) {
+              setNetError("Waiting for the other player to join.");
+              return;
+            }
+            if (result) {
+              setNetError("Game finished. The host can reset it.");
+              return;
+            }
+            if (online.seat !== current) {
+              setNetError("Wait for your turn.");
+              return;
+            }
+            rpcAction("make_bool_move", {
+              p_game_id: room,
+              p_token: getToken(),
+              p_node: node,
+            });
+            return;
+          }
+          if (result) return;
+          if (owners.has(node)) {
+            setMessage("Already claimed.");
+            return;
+          }
+          setHistory((h) => [
+            ...h,
+            { owners: new Map(owners), current, lastMove },
+          ]);
+          const preOwned = new Set();
+          owners.forEach((pi, n) => {
+            if (pi === current) preOwned.add(n);
+          });
+          const newOwners = new Map(owners);
+          newOwners.set(node, current);
+          for (const s of preOwned) {
+            newOwners.set(s & node, current);
+            newOwners.set(s | node, current);
+          }
+          setOwners(newOwners);
+          setLastMove(node);
+          const ownedNow = new Set();
+          newOwners.forEach((pi, n) => {
+            if (pi === current) ownedNow.add(n);
+          });
+          if (computePath(k, ownedNow)) {
+            setMessage(`${players[current].name} connected Top ↔ Bottom!`);
+          } else if (newOwners.size === (1 << k)) {
+            setMessage("It’s a tie! All nodes are claimed.");
+          } else {
+            setCurrent((current + 1) % players.length);
+            setMessage(
+              `${players[(current + 1) % players.length].name}'s turn.`,
+            );
+          }
+        }
+
+        function incrementK() {
+          if (room) {
+            if (online?.seat !== 0) {
+              setNetError("Only the host can change the board size.");
+              return;
+            }
+            rpcAction(
+              "resize_bool_game",
+              {
+                p_game_id: room,
+                p_token: getToken(),
+                p_board_size: Math.min(5, k + 1),
+              },
+              "Board size updated.",
+            );
+            return;
+          }
+          setK((k) => Math.min(5, k + 1));
+          reset();
+        }
+
+        function decrementK() {
+          if (room) {
+            if (online?.seat !== 0) {
+              setNetError("Only the host can change the board size.");
+              return;
+            }
+            rpcAction(
+              "resize_bool_game",
+              {
+                p_game_id: room,
+                p_token: getToken(),
+                p_board_size: Math.max(4, k - 1),
+              },
+              "Board size updated.",
+            );
+            return;
+          }
+          setK((k) => Math.max(4, k - 1));
+          reset();
+        }
+
+        async function createRoom() {
+          if (busy) return;
+          setBusy(true);
+          try {
+            const { data, error } = await sb.rpc("create_bool_game", {
+              p_token: getToken(),
+              p_board_size: k,
+            });
+            if (error) throw error;
+            location.search = `?room=${data}`;
+          } catch (e) {
+            setNetError(e.message || "Could not create the game.");
+            setBusy(false);
+          }
+        }
+
+        async function copyInvite() {
+          try {
+            await navigator.clipboard.writeText(location.href);
+            setNetError("Invite link copied.");
+          } catch {
+            setNetError("Copy the invite link from the field below.");
+          }
+        }
+
+        const toggle = (name) =>
+          setOpenPanel((p) => (p === name ? null : name));
+        const panelClass = (name) =>
+          `panel ${name}-panel ` +
+          (openPanel === name ? "d-flex" : "d-none d-lg-flex");
+        const isHost = online?.seat === 0;
+
+        return html`<div class="app d-flex flex-column">
+          <${GameOverModal} result=${result} onlineGame=${!!room} isHost=${isHost}
+            busy=${busy} error=${netError} onRestart=${reset} onCreate=${createRoom} />
+          <div class="layout">
+            <main class="main-area">
+              <${Board}
+                k=${k}
+                players=${players}
+                owners=${owners}
+                lastMove=${lastMove}
+                onClaim=${handleClaim}
+                zoom=${zoom}
+                setZoom=${setZoom}
+                pan=${pan}
+                setPan=${setPan}
+                disabled=${!!room &&
+                (!online?.guestJoined ||
+                  online?.winner != null ||
+                  online?.seat !== current)}
+              />
+            </main>
+
+            <section
+              class=${panelClass("controls")}
+              role="dialog"
+              aria-label="Controls"
+            >
+              <button
+                type="button"
+                class="close-btn btn btn-link text-white d-lg-none p-0 d-flex align-items-center justify-content-center"
+                aria-label="Close controls"
+                onClick=${() => setOpenPanel(null)}
+              >
+                ${closeIcon}
+              </button>
+              <div class="panel-scroll d-flex flex-column gap-3 controls-bg">
+                <h1 class="h4 m-0 pe-5 pe-lg-0">The Game of Bool</h1>
+                <div class="d-flex align-items-center gap-2">
+                  <span>Number of Nodes</span>
+                  <button
+                    class="btn btn-light btn-sm border"
+                    onClick=${decrementK}
+                    disabled=${!!room && !isHost}
+                  >
+                    -
+                  </button>
+                  <span>${2 ** k}</span>
+                  <button
+                    class="btn btn-light btn-sm border"
+                    onClick=${incrementK}
+                    disabled=${!!room && !isHost}
+                  >
+                    +
+                  </button>
+                </div>
+                <div class="d-flex gap-2">
+                  <button
+                    class="btn btn-light btn-sm border"
+                    onClick=${reset}
+                    disabled=${!!room && !isHost}
+                  >
+                    Reset
+                  </button>
+                  <button
+                    class="btn btn-light btn-sm border"
+                    onClick=${undo}
+                    disabled=${!!room ? !isHost : history.length === 0}
+                  >
+                    Undo
+                  </button>
+                </div>
+                <div role="status" aria-live="polite">${message}</div>
+                <div role="status" aria-live="polite">${netError}</div>
+                <hr />
+                ${room
+                  ? html`<div>
+                        You are ${online?.seat === 0 ? "X (host)" : "O"}.
+                      </div>
+                      <div>
+                        X:
+                        ${online?.seat === 0
+                          ? "You"
+                          : online?.guestJoined
+                            ? "Connected"
+                            : "Waiting"}
+                        · O:
+                        ${online?.seat === 1
+                          ? "You"
+                          : online?.guestJoined
+                            ? "Connected"
+                            : "Waiting"}
+                      </div>
+                      <label for="invite-link">Invite link</label>
+                      <input
+                        id="invite-link"
+                        class="form-control form-control-sm"
+                        readonly
+                        value=${location.href}
+                      />
+                      <button
+                        class="btn btn-light btn-sm"
+                        onClick=${copyInvite}
+                      >
+                        Copy invite link
+                      </button>
+                      <small
+                        >Only the host can reset, undo, or change the board
+                        size.</small
+                      >
+                      <a class="text-white" href=${location.pathname}
+                        >Leave game / local play</a
+                      >`
+                  : html`<button
+                        class="btn btn-light"
+                        onClick=${createRoom}
+                        disabled=${busy}
+                      >
+                        ${busy ? "Creating…" : "Create online game"}
+                      </button>
+                      <small
+                        >Create a room, then share the invite link with one
+                        other player.</small
+                      >`}
+              </div>
+            </section>
+
+            <section
+              class=${panelClass("instructions")}
+              role="dialog"
+              aria-label="Instructions"
+            >
+              <button
+                type="button"
+                class="close-btn btn btn-link text-black d-lg-none p-0 d-flex align-items-center justify-content-center"
+                aria-label="Close instructions"
+                onClick=${() => setOpenPanel(null)}
+              >
+                ${closeIcon}
+              </button>
+              <div
+                class="panel-scroll pe-5 pe-lg-4"
+                dangerouslySetInnerHTML=${instructionsHtml}
+              ></div>
+            </section>
+          </div>
+
+          <nav
+            class="bottom-nav d-flex d-lg-none flex-shrink-0"
+            aria-label="Primary"
+          >
+            <button
+              type="button"
+              class="nav-tab btn flex-fill d-flex flex-column align-items-center justify-content-center gap-1"
+              aria-pressed=${openPanel === "controls"}
+              onClick=${() => toggle("controls")}
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <line x1="4" y1="21" x2="4" y2="14" />
+                <line x1="4" y1="10" x2="4" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="12" />
+                <line x1="12" y1="8" x2="12" y2="3" />
+                <line x1="20" y1="21" x2="20" y2="16" />
+                <line x1="20" y1="12" x2="20" y2="3" />
+                <line x1="2" y1="14" x2="6" y2="14" />
+                <line x1="10" y1="8" x2="14" y2="8" />
+                <line x1="18" y1="16" x2="22" y2="16" />
+              </svg>
+              Controls
+            </button>
+            <button
+              type="button"
+              class="nav-tab btn flex-fill d-flex flex-column align-items-center justify-content-center gap-1"
+              aria-pressed=${openPanel === "instructions"}
+              onClick=${() => toggle("instructions")}
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
+                <path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
+              </svg>
+              Instructions
+            </button>
+          </nav>
+        </div>`;
+      }
+
+      render(html`<${App} />`, document.getElementById("app"));
+
+      // Diagrams for Join and Meet. Nodes: [id, x, y, label, color, radius]
+      function drawGraph(id, nodes, edges, notes) {
+        const ctx = document.getElementById(id).getContext("2d");
+        const byId = Object.fromEntries(nodes.map((n) => [n[0], n]));
+        edges.forEach(([a, b]) => {
+          ctx.beginPath();
+          ctx.moveTo(byId[a][1], byId[a][2]);
+          ctx.lineTo(byId[b][1], byId[b][2]);
+          ctx.strokeStyle = "gray";
+          ctx.stroke();
+        });
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        nodes.forEach(([, x, y, label, color, rad]) => {
+          ctx.beginPath();
+          ctx.arc(x, y, rad, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+          ctx.strokeStyle = "blue";
+          ctx.stroke();
+          ctx.fillStyle = "black";
+          ctx.fillText(label, x, y);
+        });
+        (notes || []).forEach(([t, x, y]) => ctx.fillText(t, x, y));
+      }
+
+      const LB = "lightblue",
+        LG = "lightgreen",
+        PK = "pink";
+      const fiveEdges = [
+        ["A", "B"],
+        ["E", "A"],
+        ["E", "B"],
+        ["E", "D"],
+        ["B", "D"],
+        ["C", "D"],
+      ];
+      const fourEdges = [
+        ["A", "B"],
+        ["E", "A"],
+        ["E", "D"],
+        ["B", "D"],
+      ];
+      const triEdges = [
+        ["A", "B"],
+        ["A", "U"],
+        ["B", "U"],
+      ];
+
+      drawGraph(
+        "g1",
+        [
+          ["A", 100, 150, "A", LB, 15],
+          ["B", 250, 100, "Join", LG, 25],
+          ["C", 200, 250, "B", LB, 15],
+          ["D", 350, 200, "", LB, 15],
+          ["E", 300, 40, "Not Join", PK, 20],
+        ],
+        fiveEdges,
+        [
+          ["Join of A and B", 400, 100],
+          ["is the lowest vertex that has", 400, 120],
+          ["downward paths to A and B", 400, 140],
+        ],
+      );
+      drawGraph(
+        "g2",
+        [
+          ["A", 100, 150, "A", LB, 15],
+          ["B", 250, 100, "Join", LG, 25],
+          ["D", 350, 200, "B", LB, 15],
+          ["E", 300, 40, "Not Join", PK, 20],
+        ],
+        fourEdges,
+      );
+      drawGraph(
+        "g3",
+        [
+          ["A", 100, 150, "A", LB, 15],
+          ["B", 250, 100, "B=Join", LG, 25],
+          ["U", 225, 40, "Not Join", PK, 20],
+        ],
+        triEdges,
+        [
+          ["Stay-put path from Join to B", 400, 100],
+          ["Downward path from Join to A", 400, 120],
+        ],
+      );
+      drawGraph(
+        "g4",
+        [
+          ["A", 100, 100, "A", LB, 15],
+          ["B", 250, 200, "Meet", LG, 28],
+          ["C", 200, 20, "B", LB, 15],
+          ["D", 350, 100, "", LB, 15],
+          ["E", 300, 300, "Not Meet", PK, 23],
+        ],
+        fiveEdges,
+        [
+          ["Meet of A and B", 400, 200],
+          ["is the highest vertex that has", 400, 220],
+          ["upward paths to A and B", 400, 240],
+        ],
+      );
+      drawGraph(
+        "g5",
+        [
+          ["A", 100, 50, "A", LB, 15],
+          ["B", 250, 150, "Meet", LG, 28],
+          ["D", 350, 100, "B", LB, 15],
+          ["E", 300, 250, "Not Meet", PK, 23],
+        ],
+        fourEdges,
+      );
+      drawGraph(
+        "g6",
+        [
+          ["A", 250, 40, "B", LB, 15],
+          ["B", 100, 100, "A=Meet", LG, 28],
+          ["U", 225, 160, "Not Meet", PK, 23],
+        ],
+        triEdges,
+        [
+          ["Stay-put path from Meet to A", 400, 100],
+          ["Upward path from Meet to B", 400, 120],
+        ],
+      );
+    </script>
+  </body>
+</html>
