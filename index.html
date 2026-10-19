@@ -526,17 +526,49 @@
                 ${result === "guest-left"
                   ? "The other player disconnected. Create a new online game to invite someone, or switch to a local game. If they reconnect before you leave, you can continue this match."
                   : result === "tie"
-                  ? "All nodes are claimed, but neither player connected the top to the bottom."
-                  : "A winning path connects the top to the bottom."}
+                    ? "All nodes are claimed, but neither player connected the top to the bottom."
+                    : "A winning path connects the top to the bottom."}
               </p>
               <div class="d-grid gap-2 mt-4">
-                ${result === "guest-left" ? html`
-                  <button class="btn btn-primary" disabled=${busy} onClick=${onCreate}>${busy ? "Creating…" : "Create New Online Game"}</button>
-                  <button class="btn btn-outline-primary" disabled=${busy} onClick=${onLocal}>Play Local Game</button>
-                ` : html`
-                  <button class="btn btn-primary" disabled=${busy || (!!room && !isHost)} onClick=${onRestart}>${busy ? "Please wait…" : "Start New Game"}</button>
-                  ${!room ? html`<button class="btn btn-outline-primary" disabled=${busy} onClick=${onCreate}>Create Online Game</button>` : null}
-                `}
+                ${result === "guest-left"
+                  ? html`
+                      <button
+                        class="btn btn-primary"
+                        disabled=${busy}
+                        onClick=${onCreate}
+                      >
+                        ${busy ? "Creating…" : "Create New Online Game"}
+                      </button>
+                      <button
+                        class="btn btn-outline-primary"
+                        disabled=${busy}
+                        onClick=${onLocal}
+                      >
+                        Play Local Game
+                      </button>
+                    `
+                  : html`
+                      ${!room || isHost
+                        ? html`
+                            <button
+                              class="btn btn-primary"
+                              disabled=${busy}
+                              onClick=${onRestart}
+                            >
+                              ${busy ? "Please wait…" : "Start New Game"}
+                            </button>
+                          `
+                        : null}
+                      ${!room
+                        ? html`<button
+                            class="btn btn-outline-primary"
+                            disabled=${busy}
+                            onClick=${onCreate}
+                          >
+                            Create Online Game
+                          </button>`
+                        : null}
+                    `}
               </div>
               ${room && !isHost
                 ? html`<p class="small mt-3">
@@ -608,8 +640,11 @@
         const applyGame = useCallback(
           (data) => {
             onlineRef.current = {
-              seat: data.seat, guestJoined: data.guest_joined,
-              finished: data.winner != null || Object.keys(data.owners || {}).length === (1 << data.board_size)
+              seat: data.seat,
+              guestJoined: data.guest_joined,
+              finished:
+                data.winner != null ||
+                Object.keys(data.owners || {}).length === 1 << data.board_size,
             };
             setK(data.board_size);
             setOwners(
@@ -707,62 +742,100 @@
           if (!room) return;
           let cancelled = false;
           let channel = null;
-          const clearGrace = () => { clearTimeout(reconnectTimer.current); reconnectTimer.current = null; };
+          const clearGrace = () => {
+            clearTimeout(reconnectTimer.current);
+            reconnectTimer.current = null;
+          };
           const suspendPresence = () => {
             realtimeConnectedRef.current = false;
             presenceReadyRef.current = false;
-            setRealtimeConnected(false); setPresenceReady(false); setGuestLeft(false);
+            setRealtimeConnected(false);
+            setPresenceReady(false);
+            setGuestLeft(false);
             clearGrace();
           };
-          const pageHide = () => { if (channel) channel.untrack(); };
-          const pageShow = (event) => { if (event.persisted) location.reload(); };
+          const pageHide = () => {
+            if (channel) channel.untrack();
+          };
+          const pageShow = (event) => {
+            if (event.persisted) location.reload();
+          };
           (async () => {
             try {
-              const { data: seat, error } = await sb.rpc("join_bool_game", { p_game_id: room, p_token: getToken() });
+              const { data: seat, error } = await sb.rpc("join_bool_game", {
+                p_game_id: room,
+                p_token: getToken(),
+              });
               if (cancelled) return;
-              if (error) { setNetError(error.message); return; }
-              if (!await loadGame(room) || cancelled) return;
+              if (error) {
+                setNetError(error.message);
+                return;
+              }
+              if (!(await loadGame(room)) || cancelled) return;
               channel = sb.channel(`bool-game:${room}`, {
-                config: { presence: { key: crypto.randomUUID() } }
+                config: { presence: { key: crypto.randomUUID() } },
               });
               const syncPresence = () => {
                 if (cancelled || !realtimeConnectedRef.current) return;
-                const present = Object.values(channel.presenceState()).flat().some(p => p.seat === 1);
+                const present = Object.values(channel.presenceState())
+                  .flat()
+                  .some((p) => p.seat === 1);
                 guestPresentRef.current = present;
                 presenceReadyRef.current = true;
-                setGuestPresent(present); setPresenceReady(true);
-                if (present) { clearGrace(); setGuestLeft(false); }
+                setGuestPresent(present);
+                setPresenceReady(true);
+                if (present) {
+                  clearGrace();
+                  setGuestLeft(false);
+                }
               };
               channel
-                .on("broadcast", { event: "game-updated" }, () => { if (!cancelled) loadGame(room); })
+                .on("broadcast", { event: "game-updated" }, () => {
+                  if (!cancelled) loadGame(room);
+                })
                 .on("presence", { event: "sync" }, syncPresence)
-                .subscribe(async status => {
+                .subscribe(async (status) => {
                   if (cancelled) return;
                   if (status === "SUBSCRIBED") {
                     realtimeConnectedRef.current = true;
-                    setRealtimeConnected(true); setPresenceError("");
+                    setRealtimeConnected(true);
+                    setPresenceError("");
                     const tracked = await channel.track({ seat });
                     if (cancelled) return;
                     if (tracked !== "ok") {
                       suspendPresence();
-                      setPresenceError("Couldn't share connection status. Reload to try again.");
+                      setPresenceError(
+                        "Couldn't share connection status. Reload to try again.",
+                      );
                       return;
                     }
                     syncPresence();
                     loadGame(room);
-                    channel.send({ type: "broadcast", event: "game-updated", payload: {} });
-                  } else if (["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)) {
+                    channel.send({
+                      type: "broadcast",
+                      event: "game-updated",
+                      payload: {},
+                    });
+                  } else if (
+                    ["CHANNEL_ERROR", "TIMED_OUT", "CLOSED"].includes(status)
+                  ) {
                     suspendPresence();
-                    setPresenceError("Your realtime connection is interrupted. Waiting to reconnect…");
+                    setPresenceError(
+                      "Your realtime connection is interrupted. Waiting to reconnect…",
+                    );
                   }
                 });
               channelRef.current = channel;
               window.addEventListener("pagehide", pageHide);
               window.addEventListener("pageshow", pageShow);
-            } catch (error) { if (!cancelled) setNetError(error.message || "Could not join this game."); }
+            } catch (error) {
+              if (!cancelled)
+                setNetError(error.message || "Could not join this game.");
+            }
           })();
           return () => {
-            cancelled = true; clearGrace();
+            cancelled = true;
+            clearGrace();
             window.removeEventListener("pagehide", pageHide);
             window.removeEventListener("pageshow", pageShow);
             if (channel) sb.removeChannel(channel);
@@ -773,21 +846,44 @@
         useEffect(() => {
           clearTimeout(reconnectTimer.current);
           reconnectTimer.current = null;
-          if (!room || online?.seat !== 0 || !online?.guestJoined || online?.winner != null ||
-              owners.size === (1 << k) || !presenceReady || !realtimeConnected || guestPresent) {
+          if (
+            !room ||
+            online?.seat !== 0 ||
+            !online?.guestJoined ||
+            online?.winner != null ||
+            owners.size === 1 << k ||
+            !presenceReady ||
+            !realtimeConnected ||
+            guestPresent
+          ) {
             setGuestLeft(false);
             return;
           }
           reconnectTimer.current = setTimeout(() => {
             const state = onlineRef.current;
-            if (state?.seat === 0 && state.guestJoined && !state.finished &&
-                realtimeConnectedRef.current && presenceReadyRef.current && !guestPresentRef.current) {
+            if (
+              state?.seat === 0 &&
+              state.guestJoined &&
+              !state.finished &&
+              realtimeConnectedRef.current &&
+              presenceReadyRef.current &&
+              !guestPresentRef.current
+            ) {
               setGuestLeft(true);
             }
           }, RECONNECT_GRACE_MS);
           return () => clearTimeout(reconnectTimer.current);
-        }, [room, online?.seat, online?.guestJoined, online?.winner, owners.size, k,
-            presenceReady, realtimeConnected, guestPresent]);
+        }, [
+          room,
+          online?.seat,
+          online?.guestJoined,
+          online?.winner,
+          owners.size,
+          k,
+          presenceReady,
+          realtimeConnected,
+          guestPresent,
+        ]);
 
         useEffect(() => {
           if (!room) return;
@@ -820,12 +916,20 @@
         const winnerIndex = room ? online?.winner : victory?.playerIndex;
         const isTie = winnerIndex == null && !victory && owners.size === 1 << k;
         const result =
-          winnerIndex != null ? `winner:${winnerIndex}` : isTie ? "tie" : guestLeft && online?.seat === 0 ? "guest-left" : null;
+          winnerIndex != null
+            ? `winner:${winnerIndex}`
+            : isTie
+              ? "tie"
+              : guestLeft && online?.seat === 0
+                ? "guest-left"
+                : null;
         const resultTitle = isTie
           ? "It's a tie!"
           : winnerIndex != null
             ? `${displayName(winnerIndex)} wins!`
-            : result === "guest-left" ? `${displayName(1)} left the match` : "Game over";
+            : result === "guest-left"
+              ? `${displayName(1)} left the match`
+              : "Game over";
 
         async function saveName(event) {
           event.preventDefault();
@@ -898,7 +1002,8 @@
         function handleClaim(node) {
           if (room) {
             if (presenceReady && (!realtimeConnected || !guestPresent)) {
-              setNetError("Waiting for Player 2 to reconnect."); return;
+              setNetError("Waiting for Player 2 to reconnect.");
+              return;
             }
             if (!online?.guestJoined) {
               setNetError("Waiting for the other player to join.");
@@ -1040,7 +1145,9 @@
             error=${netError}
             onRestart=${reset}
             onCreate=${createRoom}
-            onLocal=${() => { location.href = location.pathname; }}
+            onLocal=${() => {
+              location.href = location.pathname;
+            }}
           />
           <div class="layout">
             <main class="main-area">
@@ -1076,17 +1183,35 @@
               </button>
               <div class="panel-scroll d-flex flex-column gap-3 controls-bg">
                 <h1 class="h4 m-0 pe-5 pe-lg-0">The Game of Bool</h1>
-                ${room ? html`
-                  <div role="status" aria-live="polite" aria-atomic="true">
-                    <span class=${`badge rounded-pill d-inline-flex align-items-center gap-2 ${presenceReady && realtimeConnected && guestPresent ? "text-bg-success" : "text-bg-secondary"}`}>
-                      <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" aria-hidden="true"><circle cx="4" cy="4" r="4" /></svg>
-                      ${!realtimeConnected || !presenceReady ? "Checking connection…" : guestPresent
-                        ? `${onlineNames[1]} joined` : online?.guestJoined
-                        ? `${onlineNames[1]} disconnected` : "Waiting for Player 2"}
-                    </span>
-                  </div>
-                  ${presenceError ? html`<small role="status">${presenceError}</small>` : null}
-                ` : null}
+                ${room
+                  ? html`
+                      <div role="status" aria-live="polite" aria-atomic="true">
+                        <span
+                          class=${`badge rounded-pill d-inline-flex align-items-center gap-2 ${presenceReady && realtimeConnected && guestPresent ? "text-bg-success" : "text-bg-secondary"}`}
+                        >
+                          <svg
+                            width="8"
+                            height="8"
+                            viewBox="0 0 8 8"
+                            fill="currentColor"
+                            aria-hidden="true"
+                          >
+                            <circle cx="4" cy="4" r="4" />
+                          </svg>
+                          ${!realtimeConnected || !presenceReady
+                            ? "Checking connection…"
+                            : guestPresent
+                              ? `${onlineNames[1]} joined`
+                              : online?.guestJoined
+                                ? `${onlineNames[1]} disconnected`
+                                : "Waiting for Player 2"}
+                        </span>
+                      </div>
+                      ${presenceError
+                        ? html`<small role="status">${presenceError}</small>`
+                        : null}
+                    `
+                  : null}
                 <div class="d-flex align-items-center gap-2">
                   <span>Number of Nodes</span>
                   <button
