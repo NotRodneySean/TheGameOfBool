@@ -598,7 +598,24 @@
         const [zoom, setZoom] = useState(1);
         const [pan, setPan] = useState({ x: 0, y: 0 });
         const [message, setMessage] = useState("Select a node to play.");
-        const [openPanel, setOpenPanel] = useState(null);
+        // Carry the waiting-room panel across the navigation after room creation.
+        // This marker is tab-local and consumed once; invite recipients are unaffected.
+        const createdRoomOnArrival = useMemo(() => {
+          try {
+            const id = new URLSearchParams(location.search).get("room");
+            return !!id && sessionStorage.getItem("bool-created-room") === id;
+          } catch { return false; }
+        }, []);
+        const [openPanel, setOpenPanel] = useState(() => createdRoomOnArrival ? "controls" : null);
+        const waitingControls = useRef(createdRoomOnArrival);
+        useEffect(() => {
+          if (!createdRoomOnArrival) return;
+          try { sessionStorage.removeItem("bool-created-room"); } catch {}
+        }, [createdRoomOnArrival]);
+        const dismissControls = () => {
+          waitingControls.current = false;
+          setOpenPanel(null);
+        };
         const [online, setOnline] = useState(null);
         const [netError, setNetError] = useState("");
         const [busy, setBusy] = useState(false);
@@ -627,6 +644,15 @@
           () => new URLSearchParams(location.search).get("room"),
           [],
         );
+
+        useEffect(() => {
+          if (!waitingControls.current || online?.seat !== 0) return;
+          if (online.guestJoined || (presenceReady && guestPresent)) {
+            waitingControls.current = false;
+            // Don't dismiss Instructions if the host switched to that panel.
+            setOpenPanel(panel => panel === "controls" ? null : panel);
+          }
+        }, [online?.seat, online?.guestJoined, presenceReady, guestPresent]);
 
         const getToken = () => {
           let token = localStorage.getItem("bool-player-token");
@@ -893,7 +919,7 @@
 
         useEffect(() => {
           const onKey = (e) => {
-            if (e.key === "Escape") setOpenPanel(null);
+            if (e.key === "Escape") dismissControls();
           };
           window.addEventListener("keydown", onKey);
           return () => window.removeEventListener("keydown", onKey);
@@ -1112,6 +1138,8 @@
               p_board_size: k,
             });
             if (error) throw error;
+            // sessionStorage survives this navigation without changing the invite URL.
+            try { sessionStorage.setItem("bool-created-room", String(data)); } catch {}
             location.search = `?room=${data}`;
           } catch (e) {
             setNetError(e.message || "Could not create the game.");
@@ -1128,8 +1156,10 @@
           }
         }
 
-        const toggle = (name) =>
+        const toggle = (name) => {
+          if (name === "controls" && openPanel === "controls") waitingControls.current = false;
           setOpenPanel((p) => (p === name ? null : name));
+        };
         const panelClass = (name) =>
           `panel ${name}-panel ` +
           (openPanel === name ? "d-flex" : "d-none d-lg-flex");
@@ -1177,7 +1207,7 @@
                 type="button"
                 class="close-btn btn btn-link text-white d-lg-none p-0 d-flex align-items-center justify-content-center"
                 aria-label="Close controls"
-                onClick=${() => setOpenPanel(null)}
+                onClick=${dismissControls}
               >
                 ${closeIcon}
               </button>
