@@ -213,6 +213,23 @@
       .controls-bg {
         overflow-wrap: anywhere;
       }
+      .controls-panel {
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .controls-panel > .panel-scroll {
+        flex: 1 1 0;
+        min-height: 0;
+        overflow-y: auto;
+      }
+
+      .controls-footer {
+        flex: 0 0 auto;
+        padding: 1rem;
+        background: oklch(20.8% 0.042 265.755);
+        border-top: 1px solid rgb(255 255 255 / 12%);
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
@@ -605,16 +622,25 @@
           try {
             const id = new URLSearchParams(location.search).get("room");
             return !!id && sessionStorage.getItem("bool-created-room") === id;
-          } catch { return false; }
+          } catch {
+            return false;
+          }
         }, []);
-        const [openPanel, setOpenPanel] = useState(() => createdRoomOnArrival ? "controls" : null);
+        const [openPanel, setOpenPanel] = useState(() =>
+          createdRoomOnArrival ? "controls" : null,
+        );
         const waitingControls = useRef(createdRoomOnArrival);
         useEffect(() => {
           if (createdRoomOnArrival) {
-            try { sessionStorage.removeItem("bool-created-room"); } catch {}
+            try {
+              sessionStorage.removeItem("bool-created-room");
+            } catch {}
           }
         }, [createdRoomOnArrival]);
-        const dismissControls = () => { waitingControls.current = false; setOpenPanel(null); };
+        const dismissControls = () => {
+          waitingControls.current = false;
+          setOpenPanel(null);
+        };
         const [online, setOnline] = useState(null);
         const [netError, setNetError] = useState("");
         const [busy, setBusy] = useState(false);
@@ -648,7 +674,7 @@
           if (!waitingControls.current || online?.seat !== 0) return;
           if (online.guestJoined || (presenceReady && guestPresent)) {
             waitingControls.current = false;
-            setOpenPanel(panel => panel === "controls" ? null : panel);
+            setOpenPanel((panel) => (panel === "controls" ? null : panel));
           }
         }, [online?.seat, online?.guestJoined, presenceReady, guestPresent]);
 
@@ -1136,7 +1162,9 @@
               p_board_size: k,
             });
             if (error) throw error;
-            try { sessionStorage.setItem("bool-created-room", String(data)); } catch {}
+            try {
+              sessionStorage.setItem("bool-created-room", String(data));
+            } catch {}
             location.search = `?room=${data}`;
           } catch (e) {
             setNetError(e.message || "Could not create the game.");
@@ -1154,12 +1182,17 @@
         }
 
         const toggle = (name) => {
-          if (name === "controls" && openPanel === "controls") waitingControls.current = false;
+          if (name === "controls" && openPanel === "controls")
+            waitingControls.current = false;
           setOpenPanel((p) => (p === name ? null : name));
         };
         const panelClass = (name) =>
-          `panel ${name}-panel ` + (openPanel === name ? "d-flex" :
-            name === "controls" ? "d-none d-lg-flex" : "d-none");
+          `panel ${name}-panel ` +
+          (openPanel === name
+            ? "d-flex"
+            : name === "controls"
+              ? "d-none d-lg-flex"
+              : "d-none");
         const isHost = online?.seat === 0;
 
         return html`<div class="app d-flex flex-column">
@@ -1210,15 +1243,6 @@
               </button>
               <div class="panel-scroll d-flex flex-column gap-3 controls-bg">
                 <h1 class="h4 m-0 pe-5 pe-lg-0">The Game of Bool</h1>
-                <button type="button" class="btn btn-outline-light btn-sm d-none d-lg-inline-flex align-items-center gap-2 align-self-start"
-                  aria-label="Open instructions" aria-controls="instructions-panel" aria-expanded=${openPanel === "instructions"}
-                  onClick=${() => toggle("instructions")}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
-                    <path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
-                  </svg>
-                  Instructions
-                </button>
                 ${room
                   ? html`
                       <div role="status" aria-live="polite" aria-atomic="true">
@@ -1374,6 +1398,32 @@
                         >Create a room, then share the invite link with one
                         other player.</small
                       >`}
+              </div>
+
+              <div class="controls-footer d-none d-lg-flex">
+                <button
+                  type="button"
+                  class="btn btn-outline-light btn-sm w-100 d-flex justify-content-center align-items-center gap-2"
+                  aria-controls="instructions-panel"
+                  aria-expanded=${openPanel === "instructions"}
+                  onClick=${() => toggle("instructions")}
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
+                    <path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
+                  </svg>
+                  Instructions
+                </button>
               </div>
             </section>
 
