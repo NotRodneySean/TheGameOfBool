@@ -612,6 +612,8 @@
           { id: 1, name: "O", color: "#60a5fa" },
         ]);
         const [current, setCurrent] = useState(0);
+        // Starter for this local series; only advance when a completed game is reset.
+        const localStarter = useRef(0);
         const [owners, setOwners] = useState(() => new Map());
         const [lastMove, setLastMove] = useState(null);
         const [history, setHistory] = useState([]);
@@ -1016,15 +1018,16 @@
             rpcAction(
               "reset_bool_game",
               { p_game_id: room, p_token: getToken() },
-              "Game reset.",
             );
             return;
           }
+          const starter = victory ? 1 - victory.playerIndex : localStarter.current;
+          localStarter.current = starter;
           setOwners(new Map());
           setHistory([]);
           setLastMove(null);
-          setCurrent(0);
-          setMessage("Select a node to play.");
+          setCurrent(starter);
+          setMessage(`${players[starter].name} goes first. Select a node to play.`);
         }
 
         function undo() {
@@ -1124,7 +1127,6 @@
                 p_token: getToken(),
                 p_board_size: Math.min(5, k + 1),
               },
-              "Board size updated.",
             );
             return;
           }
@@ -1145,7 +1147,6 @@
                 p_token: getToken(),
                 p_board_size: Math.max(4, k - 1),
               },
-              "Board size updated.",
             );
             return;
           }
