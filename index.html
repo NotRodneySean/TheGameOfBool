@@ -230,6 +230,35 @@
         background: oklch(20.8% 0.042 265.755);
         border-top: 1px solid rgb(255 255 255 / 12%);
       }
+      .turn-badge-wrap {
+        position: absolute;
+        top: max(16px, env(safe-area-inset-top));
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        padding: 0 16px;
+        z-index: 5;
+        pointer-events: none;
+      }
+      .turn-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 100%;
+        min-width: 0;
+        padding: 10px 16px;
+        border: 1px solid rgb(255 255 255 / 20%);
+        border-radius: 999px;
+        background: rgb(15 23 42 / 94%);
+        color: #f8fafc;
+        box-shadow: 0 4px 18px rgb(0 0 0 / 25%);
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1.4;
+      }
+      .turn-badge-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+      .turn-badge-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
@@ -612,7 +641,6 @@
           { id: 1, name: "O", color: "#60a5fa" },
         ]);
         const [current, setCurrent] = useState(0);
-        // Starter for this local series; only advance when a completed game is reset.
         const localStarter = useRef(0);
         const [owners, setOwners] = useState(() => new Map());
         const [lastMove, setLastMove] = useState(null);
@@ -983,6 +1011,19 @@
               ? `${displayName(1)} left the match`
               : "Game over";
 
+        const turnBadge = (() => {
+          if (result) return { text: resultTitle, color: winnerIndex != null ? players[winnerIndex].color : "#94a3b8" };
+          if (room && !online) return { text: "Joining game…", color: "#94a3b8" };
+          if (room && !online.guestJoined) return { text: "Waiting for Player 2…", color: "#94a3b8" };
+          if (room && (!realtimeConnected || !presenceReady)) return { text: "Checking connection…", color: "#94a3b8" };
+          if (room && !guestPresent) return { text: `Waiting for ${onlineNames[1]} to reconnect…`, color: "#94a3b8" };
+          const mark = players[current].name;
+          return {
+            text: room ? `${displayName(current)}’s turn (${mark})${online.seat === current ? " · Your turn" : ""}` : `${mark}’s turn`,
+            color: players[current].color
+          };
+        })();
+
         async function saveName(event) {
           event.preventDefault();
           if (!online || savingName) return;
@@ -1212,6 +1253,12 @@
           />
           <div class="layout">
             <main class="main-area">
+              <div class="turn-badge-wrap" role="status" aria-live="polite" aria-atomic="true">
+                <div class="turn-badge" title=${turnBadge.text}>
+                  <span class="turn-badge-dot" style=${`background:${turnBadge.color}`} aria-hidden="true"></span>
+                  <span class="turn-badge-text">${turnBadge.text}</span>
+                </div>
+              </div>
               <${Board}
                 k=${k}
                 players=${players}
