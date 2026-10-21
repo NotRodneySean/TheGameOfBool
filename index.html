@@ -230,33 +230,17 @@
         background: oklch(20.8% 0.042 265.755);
         border-top: 1px solid rgb(255 255 255 / 12%);
       }
-      .turn-badge-wrap {
-        position: absolute;
-        top: max(16px, env(safe-area-inset-top));
-        left: 0;
-        right: 0;
-        display: flex;
-        justify-content: center;
-        padding: 0 16px;
-        z-index: 5;
-        pointer-events: none;
-      }
-      .turn-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        max-width: 100%;
-        min-width: 0;
-        padding: 10px 16px;
-        border: 1px solid rgb(255 255 255 / 20%);
-        border-radius: 999px;
-        background: rgb(15 23 42 / 94%);
-        color: #f8fafc;
-        box-shadow: 0 4px 18px rgb(0 0 0 / 25%);
-        font-size: 0.875rem;
-        font-weight: 600;
-        line-height: 1.4;
-      }
+      .scorecard { border: 1px solid rgb(255 255 255 / 16%); border-radius: 12px; padding: 12px; background: rgb(0 0 0 / 12%); }
+      .score-table { width: 100%; font-size: .8rem; table-layout: fixed; }
+      .score-table th, .score-table td { padding: 6px 2px; vertical-align: top; }
+      .score-table thead th { color: #cbd5e1; font-weight: 500; }
+      .score-table th:first-child { width: 56%; overflow-wrap: anywhere; }
+      .score-table td, .score-table thead th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+      .score-player-dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
+      .score-marker, .score-scope { color: #cbd5e1; }
+      .score-scope { display: block; margin-top: 4px; font-size: .7rem; }
+      .turn-badge-wrap { position: absolute; top: max(16px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; justify-content: center; padding: 0 16px; z-index: 5; pointer-events: none; }
+      .turn-badge { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; padding: 10px 16px; border: 1px solid rgb(255 255 255 / 20%); border-radius: 999px; background: rgb(15 23 42 / 94%); color: #f8fafc; box-shadow: 0 4px 18px rgb(0 0 0 / 25%); font-size: .875rem; font-weight: 600; line-height: 1.4; }
       .turn-badge-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
       .turn-badge-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
@@ -642,6 +626,7 @@
         ]);
         const [current, setCurrent] = useState(0);
         const localStarter = useRef(0);
+        const [localScores, setLocalScores] = useState({ wins: [0, 0], ties: 0 });
         const [owners, setOwners] = useState(() => new Map());
         const [lastMove, setLastMove] = useState(null);
         const [history, setHistory] = useState([]);
@@ -742,6 +727,7 @@
               seat: data.seat,
               guestJoined: data.guest_joined,
               winner: data.winner,
+              scores: { wins: [data.player1_wins || 0, data.player2_wins || 0], ties: data.tied_games || 0 },
               names: [
                 data.host_name || "Player 1",
                 data.guest_name || "Player 2",
@@ -1011,6 +997,10 @@
               ? `${displayName(1)} left the match`
               : "Game over";
 
+        const completedScores = room ? online?.scores || { wins: [0, 0], ties: 0 } : localScores;
+        const scoreWins = completedScores.wins.map((n, seat) => n + (winnerIndex === seat ? 1 : 0));
+        const scoreTies = completedScores.ties + (isTie ? 1 : 0);
+        const scoredGames = scoreWins[0] + scoreWins[1] + scoreTies;
         const turnBadge = (() => {
           if (result) return { text: resultTitle, color: winnerIndex != null ? players[winnerIndex].color : "#94a3b8" };
           if (room && !online) return { text: "Joining game…", color: "#94a3b8" };
@@ -1018,10 +1008,7 @@
           if (room && (!realtimeConnected || !presenceReady)) return { text: "Checking connection…", color: "#94a3b8" };
           if (room && !guestPresent) return { text: `Waiting for ${onlineNames[1]} to reconnect…`, color: "#94a3b8" };
           const mark = players[current].name;
-          return {
-            text: room ? `${displayName(current)}’s turn (${mark})${online.seat === current ? " · Your turn" : ""}` : `${mark}’s turn`,
-            color: players[current].color
-          };
+          return { text: room ? `${displayName(current)}’s turn (${mark})${online.seat === current ? " · Your turn" : ""}` : `${mark}’s turn`, color: players[current].color };
         })();
 
         async function saveName(event) {
@@ -1061,6 +1048,12 @@
               { p_game_id: room, p_token: getToken() },
             );
             return;
+          }
+          if (victory || isTie) {
+            setLocalScores(prev => ({
+              wins: prev.wins.map((n, seat) => n + (victory?.playerIndex === seat ? 1 : 0)),
+              ties: prev.ties + (isTie ? 1 : 0)
+            }));
           }
           const starter = victory ? 1 - victory.playerIndex : localStarter.current;
           localStarter.current = starter;
@@ -1291,6 +1284,22 @@
               </button>
               <div class="panel-scroll d-flex flex-column gap-3 controls-bg">
                 <h1 class="h4 m-0 pe-5 pe-lg-0">The Game of Bool</h1>
+                <section class="scorecard" aria-labelledby="scorecard-heading">
+                  <h2 id="scorecard-heading" class="h6 mb-2">Match record</h2>
+                  <table class="score-table">
+                    <caption class="visually-hidden">Player wins and losses in this ${room ? "online room" : "local session"}</caption>
+                    <thead><tr><th scope="col">Player</th><th scope="col">Wins</th><th scope="col">Losses</th></tr></thead>
+                    <tbody>${players.map((player, seat) => html`
+                      <tr key=${seat}>
+                        <th scope="row"><span class="score-player-dot" style=${`background:${player.color}`} aria-hidden="true"></span>${room ? displayName(seat) : `Player ${seat + 1}`} <span class="score-marker">(${player.name})</span></th>
+                        <td>${scoreWins[seat]}</td><td>${scoreWins[1 - seat]}</td>
+                      </tr>
+                    `)}</tbody>
+                  </table>
+                  <div class="small mt-2">Ties: ${scoreTies} · Games: ${scoredGames}</div>
+                  <small class="score-scope">${room ? "This room · saved between refreshes" : "This local session · clears on refresh"}</small>
+                </section>
+
                 ${room
                   ? html`
                       <div role="status" aria-live="polite" aria-atomic="true">
