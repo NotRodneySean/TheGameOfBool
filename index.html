@@ -358,6 +358,154 @@
         justify-content: center;
       }
     </style>
+    <style>
+      /* Subtle retro background */
+      .main-area {
+        isolation: isolate;
+        background-color: #080d19;
+        background-image:
+          radial-gradient(
+            ellipse at 0% 100%,
+            rgba(175, 70, 205, 0.14),
+            transparent 60%
+          ),
+          radial-gradient(
+            ellipse at 100% 0%,
+            rgba(30, 175, 205, 0.12),
+            transparent 55%
+          );
+      }
+
+      /* Fixed 56px grid keeps moving highlights aligned with its lines. */
+      .main-area::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(103, 205, 230, 0.1) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(103, 205, 230, 0.1) 1px, transparent 1px);
+        background-size: 56px 56px;
+        animation: none;
+        transform: none;
+      }
+
+      /* Each gradient is a short, soft-ended section, never a full bright line. */
+      .main-area::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(
+            90deg,
+            transparent,
+            rgba(135, 225, 245, 0.32),
+            transparent
+          ),
+          linear-gradient(
+            90deg,
+            transparent,
+            rgba(185, 145, 240, 0.25),
+            transparent
+          ),
+          linear-gradient(
+            180deg,
+            transparent,
+            rgba(135, 225, 245, 0.3),
+            transparent
+          ),
+          linear-gradient(
+            180deg,
+            transparent,
+            rgba(185, 145, 240, 0.23),
+            transparent
+          );
+        background-size:
+          150px 1px,
+          110px 1px,
+          1px 140px,
+          1px 100px;
+        background-repeat: no-repeat;
+        background-position:
+          -160px 112px,
+          calc(100% + 120px) 224px,
+          112px -150px,
+          224px calc(100% + 110px);
+        animation: bool-retro-highlights 12s linear infinite;
+      }
+
+      .main-area > .board-wrap {
+        position: relative;
+        z-index: 1;
+        background: transparent;
+      }
+
+      @keyframes bool-retro-highlights {
+        from {
+          background-position:
+            -160px 112px,
+            calc(100% + 120px) 224px,
+            112px -150px,
+            224px calc(100% + 110px);
+        }
+        to {
+          background-position:
+            calc(100% + 160px) 112px,
+            -120px 224px,
+            112px calc(100% + 150px),
+            224px -110px;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .main-area::after {
+          animation: none;
+          background-image: none;
+        }
+      }
+    </style>
+
+    <style>
+      /* Startup only: let the animated game background cover the entire viewport. */
+      .app[data-game-started="false"] > .layout {
+        display: block;
+        flex: 1 1 0;
+      }
+      .app[data-game-started="false"] .main-area {
+        position: absolute;
+        inset: 0;
+      }
+      .app[data-game-started="false"] .board-wrap,
+      .app[data-game-started="false"] .turn-badge-wrap,
+      .app[data-game-started="false"] .controls-panel,
+      .app[data-game-started="false"] .instructions-panel,
+      .app[data-game-started="false"] .bottom-nav {
+        display: none !important;
+      }
+      .setup-dialog {
+        width: min(440px, calc(100vw - 32px));
+        max-height: calc(100dvh - 32px);
+        padding: 0;
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 20px;
+        color: #f8fafc;
+        background: #111c30;
+        box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+      }
+      .setup-dialog::backdrop { background: rgb(3 7 18 / 20%); }
+      .setup-content { padding: clamp(24px, 6vw, 36px); }
+      .setup-eyebrow { color: #93c5fd; text-transform: uppercase; font-size: .75rem; letter-spacing: .15em; margin-bottom: 8px; }
+      #setup-title { font-size: clamp(1.65rem, 6vw, 2rem); margin-bottom: 12px; }
+      .setup-description { color: #cbd5e1; line-height: 1.6; margin-bottom: 24px; }
+      .setup-options label { display: block; font-size: .9rem; font-weight: 500; margin-bottom: 8px; }
+      .setup-options .form-select { min-height: 48px; }
+      .setup-help { color: #cbd5e1; font-size: .8rem; line-height: 1.7; margin: 20px 0 0; }
+      .setup-error { color: #fca5a5; margin-top: 16px; overflow-wrap: anywhere; }
+      .main-area:focus { outline: none; }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
   <body>
@@ -734,6 +882,29 @@
 
       function App() {
         const [k, setK] = useState(4);
+        // Opening an invite URL already selects an online match.
+        const [gameStarted, setGameStarted] = useState(() =>
+          !!new URLSearchParams(location.search).get("room")
+        );
+        const setupRef = useRef(null);
+        const boardAreaRef = useRef(null);
+        useEffect(() => {
+          const dialog = setupRef.current;
+          if (!gameStarted) {
+            if (!dialog.open) dialog.showModal();
+          } else {
+            if (dialog.open) dialog.close();
+          }
+          return () => { if (dialog.open) dialog.close(); };
+        }, [gameStarted]);
+        const playLocalFromSetup = () => {
+          setNetError("");
+          setOpenPanel(null);
+          setMessage("X goes first. Select a node to play.");
+          setGameStarted(true);
+          requestAnimationFrame(() => boardAreaRef.current?.focus());
+        };
+
         const [players] = useState([
           { id: 0, name: "X", color: "#22c55e" },
           { id: 1, name: "O", color: "#60a5fa" },
@@ -1249,6 +1420,7 @@
         }
 
         function handleClaim(node) {
+          if (!gameStarted) return;
           if (room) {
             if (presenceReady && (!realtimeConnected || !guestPresent)) {
               setNetError("Waiting for Player 2 to reconnect.");
@@ -1386,7 +1558,31 @@
               : "d-none");
         const isHost = online?.seat === 0;
 
-        return html`<div class="app d-flex flex-column">
+        return html`<div class="app d-flex flex-column" data-game-started=${gameStarted ? "true" : "false"}>
+          <dialog ref=${setupRef} class="setup-dialog" aria-labelledby="setup-title" aria-describedby="setup-description"
+            onCancel=${event => event.preventDefault()}>
+            <div class="setup-content">
+              <p class="setup-eyebrow">Welcome to</p>
+              <h1 id="setup-title">The Game of Bool</h1>
+              <p id="setup-description" class="setup-description">Choose your board size and how you’d like to play.</p>
+              <div class="setup-options">
+                <label for="setup-nodes">Number of nodes</label>
+                <select id="setup-nodes" class="form-select" value=${k} disabled=${busy}
+                  onChange=${event => setK(Number(event.target.value))} autoFocus>
+                  <option value="4">16 nodes</option>
+                  <option value="5">32 nodes</option>
+                </select>
+              </div>
+              <div class="d-grid gap-3 mt-4">
+                <button type="button" class="btn btn-primary btn-lg" disabled=${busy} onClick=${createRoom}>
+                  ${busy ? "Creating online game…" : "Create Online Game"}
+                </button>
+                <button type="button" class="btn btn-outline-light btn-lg" disabled=${busy} onClick=${playLocalFromSetup}>Play Local Game</button>
+              </div>
+              <p class="setup-help">Online: invite someone with a link.<br />Local: take turns on this device.</p>
+              ${netError ? html`<p class="setup-error mb-0" role="alert">${netError}</p>` : null}
+            </div>
+          </dialog>
           <dialog
             id="match-record-dialog"
             ref=${recordRef}
@@ -1464,7 +1660,7 @@
             }}
           />
           <div class="layout">
-            <main class="main-area">
+            <main class="main-area" ref=${boardAreaRef} tabindex="-1">
               <div
                 class="turn-badge-wrap"
                 role="status"
