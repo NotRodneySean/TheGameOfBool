@@ -13,8 +13,10 @@
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Space+Mono:wght@700&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -357,6 +359,12 @@
         align-items: center;
         justify-content: center;
       }
+      .bool-logo {
+        font-family: "Space Mono", monospace;
+        letter-spacing: 0.01rem;
+        font-size: 1.5rem;
+        text-align: center;
+      }
     </style>
     <style>
       /* Subtle retro background */
@@ -469,7 +477,6 @@
     </style>
 
     <style>
-      /* Startup only: let the animated game background cover the entire viewport. */
       .app[data-game-started="false"] > .layout {
         display: block;
         flex: 1 1 0;
@@ -493,18 +500,90 @@
         border-radius: 20px;
         color: #f8fafc;
         background: #111c30;
-        box-shadow: 0 24px 80px rgb(0 0 0 / 45%);
+        box-shadow: 0 24px 80px #0007;
       }
-      .setup-dialog::backdrop { background: rgb(3 7 18 / 20%); }
-      .setup-content { padding: clamp(24px, 6vw, 36px); }
-      .setup-eyebrow { color: #93c5fd; text-transform: uppercase; font-size: .75rem; letter-spacing: .15em; margin-bottom: 8px; }
-      #setup-title { font-size: clamp(1.65rem, 6vw, 2rem); margin-bottom: 12px; }
-      .setup-description { color: #cbd5e1; line-height: 1.6; margin-bottom: 24px; }
-      .setup-options label { display: block; font-size: .9rem; font-weight: 500; margin-bottom: 8px; }
-      .setup-options .form-select { min-height: 48px; }
-      .setup-help { color: #cbd5e1; font-size: .8rem; line-height: 1.7; margin: 20px 0 0; }
-      .setup-error { color: #fca5a5; margin-top: 16px; overflow-wrap: anywhere; }
-      .main-area:focus { outline: none; }
+      .setup-dialog::backdrop {
+        background: rgb(3 7 18 / 20%);
+      }
+      .setup-content {
+        padding: clamp(24px, 6vw, 36px);
+      }
+      .setup-eyebrow {
+        color: #93c5fd;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.15em;
+        margin-bottom: 8px;
+      }
+      #setup-title {
+        font-family: "Space Mono", monospace;
+        font-size: clamp(1.65rem, 6vw, 2rem);
+        margin-bottom: 12px;
+      }
+      .setup-description,
+      .setup-help {
+        color: #cbd5e1;
+        line-height: 1.6;
+      }
+      .setup-help {
+        font-size: 0.8rem;
+        margin: 20px 0 0;
+      }
+      .setup-dialog.setup-closing {
+        animation: bool-setup-out 180ms ease-in forwards;
+      }
+      @keyframes bool-setup-out {
+        to {
+          opacity: 0;
+          transform: translateY(8px) scale(0.98);
+        }
+      }
+      .app[data-board-reveal="pending"] .board-wrap {
+        visibility: hidden;
+      }
+      .app[data-board-reveal="running"] .node circle,
+      .app[data-board-reveal="running"] .node text,
+      .app[data-board-reveal="running"] .board-edge {
+        opacity: 0;
+      }
+      .node circle {
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+      .app:not([data-board-reveal="ready"]) .board-wrap {
+        pointer-events: none;
+      }
+      .app:not([data-board-reveal="ready"]) .turn-badge-wrap {
+        visibility: hidden;
+      }
+      .board-building-status {
+        position: absolute;
+        top: 16px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        z-index: 5;
+        color: #cbd5e1;
+        font-size: 0.8rem;
+        pointer-events: none;
+      }
+      .app[data-board-reveal="running"] .controls-footer {
+        animation: bool-ui-in 350ms ease-out both;
+      }
+      @keyframes bool-ui-in {
+        from {
+          opacity: 0;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .setup-dialog.setup-closing,
+        .app[data-board-reveal="running"] .controls-footer {
+          animation: none;
+        }
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
@@ -642,6 +721,8 @@
         pan,
         setPan,
         disabled,
+        revealState,
+        onIntroComplete,
       }) {
         const W = 700,
           H = 700;
@@ -652,7 +733,7 @@
 
         useEffect(() => {
           const svg = svgRef.current;
-          if (!svg) return;
+          if (!svg || revealState !== "ready") return;
           const pt = (e) => ({ x: e.clientX, y: e.clientY });
           const onWheel = (e) => {
             e.preventDefault();
@@ -688,7 +769,84 @@
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
           };
-        }, [zoom, setZoom, setPan]);
+        }, [zoom, setZoom, setPan, revealState]);
+
+        useEffect(() => {
+          if (revealState !== "running") return;
+          const svg = svgRef.current;
+          if (!svg) return;
+          if (
+            matchMedia("(prefers-reduced-motion: reduce)").matches ||
+            !svg.animate
+          ) {
+            onIntroComplete();
+            return;
+          }
+          const shuffled = (items) => {
+            const result = Array.from(items);
+            for (let i = result.length - 1; i > 0; i--) {
+              const j = Math.floor(Math.random() * (i + 1));
+              [result[i], result[j]] = [result[j], result[i]];
+            }
+            return result;
+          };
+          let cancelled = false;
+          const animations = [];
+          const nodes = shuffled(svg.querySelectorAll(".node"));
+          nodes.forEach((node, rank) => {
+            const delay = (rank / Math.max(1, nodes.length - 1)) * 480;
+            const circle = node.querySelector("circle");
+            animations.push(
+              circle.animate(
+                [
+                  { opacity: 0, transform: "scale(.55)" },
+                  { opacity: 1, transform: "scale(1)" },
+                ],
+                {
+                  duration: 280,
+                  delay,
+                  easing: "cubic-bezier(.2,.7,.3,1)",
+                  fill: "both",
+                },
+              ),
+            );
+            animations.push(
+              node
+                .querySelector("text")
+                .animate([{ opacity: 0 }, { opacity: 1 }], {
+                  duration: 220,
+                  delay,
+                  fill: "both",
+                }),
+            );
+          });
+          const edges = shuffled(svg.querySelectorAll(".board-edge"));
+          edges.forEach((line, rank) => {
+            animations.push(
+              line.animate(
+                [
+                  { opacity: 0, strokeDasharray: "1 1", strokeDashoffset: 1 },
+                  { opacity: 1, strokeDasharray: "1 1", strokeDashoffset: 0 },
+                ],
+                {
+                  duration: 250,
+                  delay: 820 + (rank / Math.max(1, edges.length - 1)) * 350,
+                  easing: "ease-out",
+                  fill: "both",
+                },
+              ),
+            );
+          });
+          Promise.all(animations.map((a) => a.finished))
+            .then(() => {
+              if (!cancelled) onIntroComplete();
+            })
+            .catch(() => {});
+          return () => {
+            cancelled = true;
+            animations.forEach((a) => a.cancel());
+          };
+        }, [revealState, k, onIntroComplete]);
 
         const baseR = 18;
         return html`<div class="board-wrap">
@@ -707,6 +865,8 @@
                 }
                 return html`<line
                   key=${i}
+                  class="board-edge"
+                  pathLength="1"
                   x1=${p.x}
                   y1=${p.y}
                   x2=${q.x}
@@ -737,7 +897,7 @@
                     y=${10}
                     text-anchor="middle"
                     onClick=${() => onClaim(v)}
-                    style="font-size: 2em; font-family: Arial, sans-serif;"
+                    style="font-size: 1.8em; font-family: Arial, sans-serif;"
                   >
                     ${owner != null ? players[owner].name : ""}
                   </text>
@@ -882,29 +1042,47 @@
 
       function App() {
         const [k, setK] = useState(4);
-        // Opening an invite URL already selects an online match.
-        const [gameStarted, setGameStarted] = useState(() =>
-          !!new URLSearchParams(location.search).get("room")
+        const [gameStarted, setGameStarted] = useState(
+          () => !!new URLSearchParams(location.search).get("room"),
+        );
+        const [setupClosing, setSetupClosing] = useState(false);
+        const [introDone, setIntroDone] = useState(false);
+        const [desktopView, setDesktopView] = useState(
+          () => matchMedia("(min-width: 992px)").matches,
         );
         const setupRef = useRef(null);
-        const boardAreaRef = useRef(null);
+        const setupTimer = useRef(null);
+        const finishIntro = useCallback(() => setIntroDone(true), []);
+        useEffect(() => {
+          const media = matchMedia("(min-width: 992px)");
+          const change = () => setDesktopView(media.matches);
+          media.addEventListener("change", change);
+          return () => media.removeEventListener("change", change);
+        }, []);
         useEffect(() => {
           const dialog = setupRef.current;
           if (!gameStarted) {
             if (!dialog.open) dialog.showModal();
-          } else {
+          } else if (dialog.open) dialog.close();
+          return () => {
             if (dialog.open) dialog.close();
-          }
-          return () => { if (dialog.open) dialog.close(); };
+          };
         }, [gameStarted]);
+        useEffect(() => () => clearTimeout(setupTimer.current), []);
         const playLocalFromSetup = () => {
+          if (setupClosing) return;
           setNetError("");
-          setOpenPanel(null);
-          setMessage("X goes first. Select a node to play.");
-          setGameStarted(true);
-          requestAnimationFrame(() => boardAreaRef.current?.focus());
+          setSetupClosing(true);
+          const delay = matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? 0
+            : 180;
+          setupTimer.current = setTimeout(() => {
+            setOpenPanel(null);
+            setMessage("X goes first. Select a node to play.");
+            setGameStarted(true);
+            setSetupClosing(false);
+          }, delay);
         };
-
         const [players] = useState([
           { id: 0, name: "X", color: "#22c55e" },
           { id: 1, name: "O", color: "#60a5fa" },
@@ -1420,7 +1598,7 @@
         }
 
         function handleClaim(node) {
-          if (!gameStarted) return;
+          if (!gameStarted || !introDone) return;
           if (room) {
             if (presenceReady && (!realtimeConnected || !guestPresent)) {
               setNetError("Waiting for Player 2 to reconnect.");
@@ -1528,6 +1706,17 @@
             try {
               sessionStorage.setItem("bool-created-room", String(data));
             } catch {}
+            if (!gameStarted) {
+              setSetupClosing(true);
+              await new Promise((resolve) =>
+                setTimeout(
+                  resolve,
+                  matchMedia("(prefers-reduced-motion: reduce)").matches
+                    ? 0
+                    : 180,
+                ),
+              );
+            }
             location.search = `?room=${data}`;
           } catch (e) {
             setNetError(e.message || "Could not create the game.");
@@ -1557,30 +1746,71 @@
               ? "d-none d-lg-flex"
               : "d-none");
         const isHost = online?.seat === 0;
+        const boardVisible =
+          gameStarted &&
+          (!room || !!online) &&
+          (desktopView || openPanel === null);
+        const revealState = introDone
+          ? "ready"
+          : boardVisible
+            ? "running"
+            : "pending";
 
-        return html`<div class="app d-flex flex-column" data-game-started=${gameStarted ? "true" : "false"}>
-          <dialog ref=${setupRef} class="setup-dialog" aria-labelledby="setup-title" aria-describedby="setup-description"
-            onCancel=${event => event.preventDefault()}>
+        return html`<div
+          class="app d-flex flex-column"
+          data-game-started=${gameStarted ? "true" : "false"}
+          data-board-reveal=${revealState}
+        >
+          <dialog
+            ref=${setupRef}
+            class=${`setup-dialog ${setupClosing ? "setup-closing" : ""}`}
+            aria-labelledby="setup-title"
+            aria-describedby="setup-description"
+            onCancel=${(e) => e.preventDefault()}
+          >
             <div class="setup-content">
               <p class="setup-eyebrow">Welcome to</p>
               <h1 id="setup-title">The Game of Bool</h1>
-              <p id="setup-description" class="setup-description">Choose your board size and how you’d like to play.</p>
-              <div class="setup-options">
-                <label for="setup-nodes">Number of nodes</label>
-                <select id="setup-nodes" class="form-select" value=${k} disabled=${busy}
-                  onChange=${event => setK(Number(event.target.value))} autoFocus>
-                  <option value="4">16 nodes</option>
-                  <option value="5">32 nodes</option>
-                </select>
-              </div>
+              <p class="setup-description" id="setup-description">
+                Choose your board size and how you’d like to play.
+              </p>
+              <label class="d-block mb-2" for="setup-nodes"
+                >Number of nodes</label
+              >
+              <select
+                id="setup-nodes"
+                class="form-select"
+                value=${k}
+                disabled=${busy || setupClosing}
+                autofocus
+                onChange=${(e) => setK(Number(e.target.value))}
+              >
+                <option value="4">16 nodes</option>
+                <option value="5">32 nodes</option>
+              </select>
               <div class="d-grid gap-3 mt-4">
-                <button type="button" class="btn btn-primary btn-lg" disabled=${busy} onClick=${createRoom}>
+                <button
+                  class="btn btn-primary btn-lg"
+                  disabled=${busy || setupClosing}
+                  onClick=${createRoom}
+                >
                   ${busy ? "Creating online game…" : "Create Online Game"}
                 </button>
-                <button type="button" class="btn btn-outline-light btn-lg" disabled=${busy} onClick=${playLocalFromSetup}>Play Local Game</button>
+                <button
+                  class="btn btn-outline-light btn-lg"
+                  disabled=${busy || setupClosing}
+                  onClick=${playLocalFromSetup}
+                >
+                  Play Local Game
+                </button>
               </div>
-              <p class="setup-help">Online: invite someone with a link.<br />Local: take turns on this device.</p>
-              ${netError ? html`<p class="setup-error mb-0" role="alert">${netError}</p>` : null}
+              <p class="setup-help">
+                Online: invite someone with a link.<br />Local: take turns on
+                this device.
+              </p>
+              ${netError
+                ? html`<p class="text-danger mb-0" role="alert">${netError}</p>`
+                : null}
             </div>
           </dialog>
           <dialog
@@ -1660,7 +1890,18 @@
             }}
           />
           <div class="layout">
-            <main class="main-area" ref=${boardAreaRef} tabindex="-1">
+            <main class="main-area" aria-busy=${!introDone}>
+              ${gameStarted && !introDone
+                ? html`<div
+                    class="board-building-status"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    ${boardVisible
+                      ? "Building the board…"
+                      : "Preparing the board…"}
+                  </div>`
+                : null}
               <div
                 class="turn-badge-wrap"
                 role="status"
@@ -1677,6 +1918,8 @@
                 </div>
               </div>
               <${Board}
+                revealState=${revealState}
+                onIntroComplete=${finishIntro}
                 k=${k}
                 players=${players}
                 owners=${owners}
@@ -1686,10 +1929,11 @@
                 setZoom=${setZoom}
                 pan=${pan}
                 setPan=${setPan}
-                disabled=${!!room &&
-                (!online?.guestJoined ||
-                  online?.winner != null ||
-                  online?.seat !== current)}
+                disabled=${!introDone ||
+                (!!room &&
+                  (!online?.guestJoined ||
+                    online?.winner != null ||
+                    online?.seat !== current))}
               />
             </main>
 
@@ -1707,7 +1951,7 @@
                 ${closeIcon}
               </button>
               <div class="panel-scroll d-flex flex-column gap-3 controls-bg">
-                <h1 class="h4 m-0 pe-5 pe-lg-0">The Game of Bool</h1>
+                <h1 class="h4 m-0 pe-5 pe-lg-0 bool-logo">The Game of Bool</h1>
 
                 ${room
                   ? html`
