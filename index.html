@@ -230,19 +230,134 @@
         background: oklch(20.8% 0.042 265.755);
         border-top: 1px solid rgb(255 255 255 / 12%);
       }
-      .scorecard { border: 1px solid rgb(255 255 255 / 16%); border-radius: 12px; padding: 12px; background: rgb(0 0 0 / 12%); }
-      .score-table { width: 100%; font-size: .8rem; table-layout: fixed; }
-      .score-table th, .score-table td { padding: 6px 2px; vertical-align: top; }
-      .score-table thead th { color: #cbd5e1; font-weight: 500; }
-      .score-table th:first-child { width: 56%; overflow-wrap: anywhere; }
-      .score-table td, .score-table thead th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
-      .score-player-dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; }
-      .score-marker, .score-scope { color: #cbd5e1; }
-      .score-scope { display: block; margin-top: 4px; font-size: .7rem; }
-      .turn-badge-wrap { position: absolute; top: max(16px, env(safe-area-inset-top)); left: 0; right: 0; display: flex; justify-content: center; padding: 0 16px; z-index: 5; pointer-events: none; }
-      .turn-badge { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-width: 0; padding: 10px 16px; border: 1px solid rgb(255 255 255 / 20%); border-radius: 999px; background: rgb(15 23 42 / 94%); color: #f8fafc; box-shadow: 0 4px 18px rgb(0 0 0 / 25%); font-size: .875rem; font-weight: 600; line-height: 1.4; }
-      .turn-badge-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-      .turn-badge-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .scorecard {
+        border: 1px solid rgb(255 255 255 / 16%);
+        border-radius: 12px;
+        padding: 12px;
+        background: rgb(0 0 0 / 12%);
+      }
+      .score-table {
+        width: 100%;
+        font-size: 0.8rem;
+        table-layout: fixed;
+      }
+      .score-table th,
+      .score-table td {
+        padding: 6px 2px;
+        vertical-align: top;
+      }
+      .score-table thead th {
+        color: #cbd5e1;
+        font-weight: 500;
+      }
+      .score-table th:first-child {
+        width: 56%;
+        overflow-wrap: anywhere;
+      }
+      .score-table td,
+      .score-table thead th:not(:first-child) {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .score-player-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 5px;
+        border-radius: 50%;
+      }
+      .score-marker,
+      .score-scope {
+        color: #cbd5e1;
+      }
+      .score-scope {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.7rem;
+      }
+      .turn-badge-wrap {
+        position: absolute;
+        top: max(16px, env(safe-area-inset-top));
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        padding: 0 16px;
+        z-index: 5;
+        pointer-events: none;
+      }
+      .turn-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 100%;
+        min-width: 0;
+        padding: 10px 16px;
+        border: 1px solid rgb(255 255 255 / 20%);
+        border-radius: 999px;
+        background: rgb(15 23 42 / 94%);
+        color: #f8fafc;
+        box-shadow: 0 4px 18px rgb(0 0 0 / 25%);
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1.4;
+      }
+      .turn-badge-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex: 0 0 auto;
+      }
+      .turn-badge-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .record-dialog {
+        width: min(460px, calc(100vw - 32px));
+        max-height: calc(100dvh - 32px);
+        overflow-y: auto;
+        padding: 0;
+        border: 1px solid rgb(255 255 255 / 18%);
+        border-radius: 16px;
+        color: #f8fafc;
+        background: #1e293b;
+        box-shadow: 0 24px 80px rgb(0 0 0 / 40%);
+      }
+      .record-dialog::backdrop {
+        background: rgb(5 10 20 / 75%);
+      }
+      .record-modal-card {
+        border: 0;
+        border-radius: 0;
+        padding: 28px 24px;
+        background: transparent;
+      }
+      .record-modal-card h2 {
+        padding-right: 44px;
+        font-size: 1.2rem;
+        margin-bottom: 20px !important;
+      }
+      .record-modal-card .score-table {
+        font-size: 0.95rem;
+      }
+      .record-modal-card .score-table th,
+      .record-modal-card .score-table td {
+        padding-top: 12px;
+        padding-bottom: 12px;
+      }
+      .record-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 44px;
+        height: 44px;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
@@ -626,7 +741,10 @@
         ]);
         const [current, setCurrent] = useState(0);
         const localStarter = useRef(0);
-        const [localScores, setLocalScores] = useState({ wins: [0, 0], ties: 0 });
+        const [localScores, setLocalScores] = useState({
+          wins: [0, 0],
+          ties: 0,
+        });
         const [owners, setOwners] = useState(() => new Map());
         const [lastMove, setLastMove] = useState(null);
         const [history, setHistory] = useState([]);
@@ -659,6 +777,17 @@
         const [online, setOnline] = useState(null);
         const [netError, setNetError] = useState("");
         const [busy, setBusy] = useState(false);
+        const [recordOpen, setRecordOpen] = useState(false);
+        const recordRef = useRef(null);
+        useEffect(() => {
+          const dialog = recordRef.current;
+          if (recordOpen) {
+            if (!dialog.open) dialog.showModal();
+          } else if (dialog.open) dialog.close();
+          return () => {
+            if (dialog.open) dialog.close();
+          };
+        }, [recordOpen]);
         const channelRef = useRef(null);
         const [presenceReady, setPresenceReady] = useState(false);
         const [guestPresent, setGuestPresent] = useState(false);
@@ -727,7 +856,10 @@
               seat: data.seat,
               guestJoined: data.guest_joined,
               winner: data.winner,
-              scores: { wins: [data.player1_wins || 0, data.player2_wins || 0], ties: data.tied_games || 0 },
+              scores: {
+                wins: [data.player1_wins || 0, data.player2_wins || 0],
+                ties: data.tied_games || 0,
+              },
               names: [
                 data.host_name || "Player 1",
                 data.guest_name || "Player 2",
@@ -959,7 +1091,8 @@
 
         useEffect(() => {
           const onKey = (e) => {
-            if (e.key === "Escape") dismissControls();
+            if (e.key === "Escape" && !recordRef.current?.open)
+              dismissControls();
           };
           window.addEventListener("keydown", onKey);
           return () => window.removeEventListener("keydown", onKey);
@@ -997,18 +1130,42 @@
               ? `${displayName(1)} left the match`
               : "Game over";
 
-        const completedScores = room ? online?.scores || { wins: [0, 0], ties: 0 } : localScores;
-        const scoreWins = completedScores.wins.map((n, seat) => n + (winnerIndex === seat ? 1 : 0));
+        const completedScores = room
+          ? online?.scores || { wins: [0, 0], ties: 0 }
+          : localScores;
+        const scoreWins = completedScores.wins.map(
+          (n, seat) => n + (winnerIndex === seat ? 1 : 0),
+        );
         const scoreTies = completedScores.ties + (isTie ? 1 : 0);
         const scoredGames = scoreWins[0] + scoreWins[1] + scoreTies;
+        useEffect(() => {
+          if (result) setRecordOpen(false);
+        }, [result]);
         const turnBadge = (() => {
-          if (result) return { text: resultTitle, color: winnerIndex != null ? players[winnerIndex].color : "#94a3b8" };
-          if (room && !online) return { text: "Joining game…", color: "#94a3b8" };
-          if (room && !online.guestJoined) return { text: "Waiting for Player 2…", color: "#94a3b8" };
-          if (room && (!realtimeConnected || !presenceReady)) return { text: "Checking connection…", color: "#94a3b8" };
-          if (room && !guestPresent) return { text: `Waiting for ${onlineNames[1]} to reconnect…`, color: "#94a3b8" };
+          if (result)
+            return {
+              text: resultTitle,
+              color:
+                winnerIndex != null ? players[winnerIndex].color : "#94a3b8",
+            };
+          if (room && !online)
+            return { text: "Joining game…", color: "#94a3b8" };
+          if (room && !online.guestJoined)
+            return { text: "Waiting for Player 2…", color: "#94a3b8" };
+          if (room && (!realtimeConnected || !presenceReady))
+            return { text: "Checking connection…", color: "#94a3b8" };
+          if (room && !guestPresent)
+            return {
+              text: `Waiting for ${onlineNames[1]} to reconnect…`,
+              color: "#94a3b8",
+            };
           const mark = players[current].name;
-          return { text: room ? `${displayName(current)}’s turn (${mark})${online.seat === current ? " · Your turn" : ""}` : `${mark}’s turn`, color: players[current].color };
+          return {
+            text: room
+              ? `${displayName(current)}’s turn (${mark})${online.seat === current ? " · Your turn" : ""}`
+              : `${mark}’s turn`,
+            color: players[current].color,
+          };
         })();
 
         async function saveName(event) {
@@ -1043,25 +1200,31 @@
               setNetError("Only the host can reset the game.");
               return;
             }
-            rpcAction(
-              "reset_bool_game",
-              { p_game_id: room, p_token: getToken() },
-            );
+            rpcAction("reset_bool_game", {
+              p_game_id: room,
+              p_token: getToken(),
+            });
             return;
           }
           if (victory || isTie) {
-            setLocalScores(prev => ({
-              wins: prev.wins.map((n, seat) => n + (victory?.playerIndex === seat ? 1 : 0)),
-              ties: prev.ties + (isTie ? 1 : 0)
+            setLocalScores((prev) => ({
+              wins: prev.wins.map(
+                (n, seat) => n + (victory?.playerIndex === seat ? 1 : 0),
+              ),
+              ties: prev.ties + (isTie ? 1 : 0),
             }));
           }
-          const starter = victory ? 1 - victory.playerIndex : localStarter.current;
+          const starter = victory
+            ? 1 - victory.playerIndex
+            : localStarter.current;
           localStarter.current = starter;
           setOwners(new Map());
           setHistory([]);
           setLastMove(null);
           setCurrent(starter);
-          setMessage(`${players[starter].name} goes first. Select a node to play.`);
+          setMessage(
+            `${players[starter].name} goes first. Select a node to play.`,
+          );
         }
 
         function undo() {
@@ -1154,14 +1317,11 @@
               setNetError("Only the host can change the board size.");
               return;
             }
-            rpcAction(
-              "resize_bool_game",
-              {
-                p_game_id: room,
-                p_token: getToken(),
-                p_board_size: Math.min(5, k + 1),
-              },
-            );
+            rpcAction("resize_bool_game", {
+              p_game_id: room,
+              p_token: getToken(),
+              p_board_size: Math.min(5, k + 1),
+            });
             return;
           }
           setK((k) => Math.min(5, k + 1));
@@ -1174,14 +1334,11 @@
               setNetError("Only the host can change the board size.");
               return;
             }
-            rpcAction(
-              "resize_bool_game",
-              {
-                p_game_id: room,
-                p_token: getToken(),
-                p_board_size: Math.max(4, k - 1),
-              },
-            );
+            rpcAction("resize_bool_game", {
+              p_game_id: room,
+              p_token: getToken(),
+              p_board_size: Math.max(4, k - 1),
+            });
             return;
           }
           setK((k) => Math.max(4, k - 1));
@@ -1231,6 +1388,69 @@
         const isHost = online?.seat === 0;
 
         return html`<div class="app d-flex flex-column">
+          <dialog
+            id="match-record-dialog"
+            ref=${recordRef}
+            class="record-dialog"
+            aria-labelledby="scorecard-heading"
+            onCancel=${() => setRecordOpen(false)}
+          >
+            <button
+              type="button"
+              class="record-close btn btn-outline-light"
+              aria-label="Close match record"
+              onClick=${() => setRecordOpen(false)}
+            >
+              ${closeIcon}
+            </button>
+            <section
+              class="scorecard record-modal-card"
+              aria-labelledby="scorecard-heading"
+            >
+              <h2 id="scorecard-heading" class="h6 mb-2">Match record</h2>
+              <table class="score-table">
+                <caption class="visually-hidden">
+                  Player wins and losses in this
+                  ${room ? "online room" : "local session"}
+                </caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Player</th>
+                    <th scope="col">Win</th>
+                    <th scope="col">Lose</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${players.map(
+                    (player, seat) => html`
+                      <tr key=${seat}>
+                        <th scope="row">
+                          <span
+                            class="score-player-dot"
+                            style=${`background:${player.color}`}
+                            aria-hidden="true"
+                          ></span
+                          >${room ? displayName(seat) : `Player ${seat + 1}`}
+                          <span class="score-marker">(${player.name})</span>
+                        </th>
+                        <td>${scoreWins[seat]}</td>
+                        <td>${scoreWins[1 - seat]}</td>
+                      </tr>
+                    `,
+                  )}
+                </tbody>
+              </table>
+              <div class="small mt-2">
+                Ties: ${scoreTies} · Games: ${scoredGames}
+              </div>
+              <small class="score-scope"
+                >${room
+                  ? "This room · saved between refreshes"
+                  : "This local session · clears on refresh"}</small
+              >
+            </section>
+          </dialog>
+
           <${ResultModal}
             result=${result}
             title=${resultTitle}
@@ -1246,9 +1466,18 @@
           />
           <div class="layout">
             <main class="main-area">
-              <div class="turn-badge-wrap" role="status" aria-live="polite" aria-atomic="true">
+              <div
+                class="turn-badge-wrap"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 <div class="turn-badge" title=${turnBadge.text}>
-                  <span class="turn-badge-dot" style=${`background:${turnBadge.color}`} aria-hidden="true"></span>
+                  <span
+                    class="turn-badge-dot"
+                    style=${`background:${turnBadge.color}`}
+                    aria-hidden="true"
+                  ></span>
                   <span class="turn-badge-text">${turnBadge.text}</span>
                 </div>
               </div>
@@ -1284,46 +1513,9 @@
               </button>
               <div class="panel-scroll d-flex flex-column gap-3 controls-bg">
                 <h1 class="h4 m-0 pe-5 pe-lg-0">The Game of Bool</h1>
-                <section class="scorecard" aria-labelledby="scorecard-heading">
-                  <h2 id="scorecard-heading" class="h6 mb-2">Match record</h2>
-                  <table class="score-table">
-                    <caption class="visually-hidden">Player wins and losses in this ${room ? "online room" : "local session"}</caption>
-                    <thead><tr><th scope="col">Player</th><th scope="col">Wins</th><th scope="col">Losses</th></tr></thead>
-                    <tbody>${players.map((player, seat) => html`
-                      <tr key=${seat}>
-                        <th scope="row"><span class="score-player-dot" style=${`background:${player.color}`} aria-hidden="true"></span>${room ? displayName(seat) : `Player ${seat + 1}`} <span class="score-marker">(${player.name})</span></th>
-                        <td>${scoreWins[seat]}</td><td>${scoreWins[1 - seat]}</td>
-                      </tr>
-                    `)}</tbody>
-                  </table>
-                  <div class="small mt-2">Ties: ${scoreTies} · Games: ${scoredGames}</div>
-                  <small class="score-scope">${room ? "This room · saved between refreshes" : "This local session · clears on refresh"}</small>
-                </section>
 
                 ${room
                   ? html`
-                      <div role="status" aria-live="polite" aria-atomic="true">
-                        <span
-                          class=${`badge rounded-pill d-inline-flex align-items-center gap-2 ${presenceReady && realtimeConnected && guestPresent ? "text-bg-success" : "text-bg-secondary"}`}
-                        >
-                          <svg
-                            width="8"
-                            height="8"
-                            viewBox="0 0 8 8"
-                            fill="currentColor"
-                            aria-hidden="true"
-                          >
-                            <circle cx="4" cy="4" r="4" />
-                          </svg>
-                          ${!realtimeConnected || !presenceReady
-                            ? "Checking connection…"
-                            : guestPresent
-                              ? `${onlineNames[1]} joined`
-                              : online?.guestJoined
-                                ? `${onlineNames[1]} disconnected`
-                                : "Waiting for Player 2"}
-                        </span>
-                      </div>
                       ${presenceError
                         ? html`<small role="status">${presenceError}</small>`
                         : null}
@@ -1457,7 +1649,30 @@
                       >`}
               </div>
 
-              <div class="controls-footer d-none d-lg-flex">
+              <div class="controls-footer d-none d-lg-flex flex-column gap-2">
+                <button
+                  type="button"
+                  class="btn btn-outline-light btn-sm w-100 d-flex justify-content-center align-items-center gap-2"
+                  aria-haspopup="dialog"
+                  aria-controls="match-record-dialog"
+                  onClick=${() => setRecordOpen(true)}
+                >
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4Z" />
+                    <path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" />
+                  </svg>
+                  Match Record
+                </button>
                 <button
                   type="button"
                   class="btn btn-outline-light btn-sm w-100 d-flex justify-content-center align-items-center gap-2"
@@ -1537,6 +1752,29 @@
                 <line x1="18" y1="16" x2="22" y2="16" />
               </svg>
               Controls
+            </button>
+            <button
+              type="button"
+              class="nav-tab btn flex-fill d-flex flex-column align-items-center justify-content-center gap-1"
+              aria-haspopup="dialog"
+              aria-controls="match-record-dialog"
+              onClick=${() => setRecordOpen(true)}
+            >
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M8 21h8M12 17v4M7 4h10v6a5 5 0 0 1-10 0V4Z" />
+                <path d="M7 6H4v2a4 4 0 0 0 4 4M17 6h3v2a4 4 0 0 1-4 4" />
+              </svg>
+              Match Record
             </button>
             <button
               type="button"
